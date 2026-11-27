@@ -494,8 +494,9 @@ kbd {
   left: 0;
   transform-origin: 0 0;
 }
-.canvas-artboard {
-  position: relative;
+.canvas-artboard,
+.canvas-root {
+  position: absolute;
   width: max-content;
 }
 .canvas-element {
@@ -504,8 +505,41 @@ kbd {
 .canvas-artboard > .canvas-element {
   box-shadow: 0 8px 32px #0003;
 }
-.canvas-element[data-selected="true"] {
-  outline: 2px solid #0099ff;
+.canvas-selection-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
+  border: 2px solid #0099ff;
+  pointer-events: none;
+  z-index: 1;
+}
+.canvas-selection-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  background: #0099ff;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  transform-origin: bottom left;
+}
+.canvas-text-content {
+  display: block;
+  min-height: 1.5em;
+  white-space: inherit;
+  overflow-wrap: inherit;
+}
+.canvas-text-content[contenteditable="plaintext-only"] {
+  cursor: text;
+  user-select: text;
+  outline: none;
+  min-width: 1ch;
 }
 .canvas-frame-label {
   position: absolute;

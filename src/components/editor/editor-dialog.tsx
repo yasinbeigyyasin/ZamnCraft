@@ -5,12 +5,7 @@ import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
 
 export type EditorDialogKind =
-  | "preview"
-  | "export"
-  | "project"
-  | "help"
-  | "navigation"
-  | "inspector";
+  "preview" | "export" | "project" | "help" | "navigation" | "inspector";
 
 const titles: Record<EditorDialogKind, string> = {
   preview: "Site preview",
@@ -111,8 +106,10 @@ export function EditorDialog({
           </div>
           <p className="dialog-description">
             Hold Space and drag, or drag with the middle mouse button, to pan.
-            Hold Ctrl or Cmd and scroll to zoom at the pointer. Drawing, text
-            editing, and property editing come in later steps.
+            Hold Ctrl or Cmd and scroll to zoom at the pointer. Select Frame or
+            Text, then click on the canvas or inside a frame to add an element.
+            Double-click text to edit; Enter saves, Shift+Enter adds a line, and
+            Escape cancels. Property editing comes in a later step.
           </p>
         </div>
       ) : (

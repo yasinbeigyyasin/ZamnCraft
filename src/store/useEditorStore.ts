@@ -29,6 +29,20 @@ export function findElementById(
   }
 }
 
+function updateElement(
+  elements: EditorElement[],
+  id: string,
+  update: (element: EditorElement) => EditorElement,
+): EditorElement[] {
+  return elements.map((element) => {
+    if (element.id === id) return update(element);
+    const children = updateElement(element.children, id, update);
+    return children.some((child, index) => child !== element.children[index])
+      ? { ...element, children }
+      : element;
+  });
+}
+
 export interface EditorState {
   elements: EditorElement[];
   selectedElementId: string | null;
@@ -36,6 +50,12 @@ export interface EditorState {
   tab: SidebarTab;
   canvasConfig: CanvasConfig;
   setElements: (elements: EditorElement[]) => void;
+  addElement: (
+    parentId: string | null,
+    type: "frame" | "text",
+    position: Point,
+  ) => string | null;
+  updateText: (id: string, content: string) => void;
   setSelectedElementId: (id: string | null) => void;
   setActiveTool: (tool: EditorTool) => void;
   setTab: (tab: SidebarTab) => void;
@@ -74,6 +94,64 @@ export const useEditorStore = create<EditorState>((set) => ({
           ? state.selectedElementId
           : null,
     })),
+  addElement: (parentId, type, position) => {
+    if (!Number.isFinite(position.x) || !Number.isFinite(position.y))
+      return null;
+    let createdId: string | null = null;
+    set((state) => {
+      const parent =
+        parentId === null ? null : findElementById(state.elements, parentId);
+      if (parentId !== null && parent?.type !== "frame") return state;
+      const element: EditorElement = {
+        id: crypto.randomUUID(),
+        name: type === "frame" ? "Frame" : "Text",
+        type,
+        children: [],
+        styles: {
+          position: "absolute",
+          left: parentId === null ? position.x : Math.max(0, position.x),
+          top: parentId === null ? position.y : Math.max(0, position.y),
+          width: 200,
+          ...(type === "frame"
+            ? { height: 200, backgroundColor: "#e5e5e5" }
+            : {
+                minHeight: 24,
+                fontSize: 16,
+                lineHeight: 1.5,
+                color: parentId === null ? "#ffffff" : "#111111",
+                whiteSpace: "pre-wrap",
+                overflowWrap: "anywhere",
+              }),
+        },
+        ...(type === "text" ? { content: "Double click to edit" } : {}),
+        animations: {},
+      };
+      createdId = element.id;
+      return {
+        elements:
+          parentId === null
+            ? [...state.elements, element]
+            : updateElement(state.elements, parentId, (frame) => ({
+                ...frame,
+                children: [...frame.children, element],
+              })),
+        selectedElementId: element.id,
+        activeTool: "select",
+      };
+    });
+    return createdId;
+  },
+  updateText: (id, content) =>
+    set((state) => {
+      const element = findElementById(state.elements, id);
+      if (element?.type !== "text" || element.content === content) return state;
+      return {
+        elements: updateElement(state.elements, id, (text) => ({
+          ...text,
+          content,
+        })),
+      };
+    }),
   setSelectedElementId: (id) =>
     set((state) => ({
       selectedElementId:

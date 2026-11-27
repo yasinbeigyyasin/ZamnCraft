@@ -1,64 +1,21 @@
 "use client";
 
 import {
-  memo,
   useCallback,
   useEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  ChevronRight,
-  Hand,
-  Home,
-  Maximize,
-  Minus,
-  Monitor,
-  Plus,
-} from "lucide-react";
+import { ChevronRight, Hand, Home, Maximize, Minus, Plus } from "lucide-react";
 import {
   MAX_ZOOM,
   MIN_ZOOM,
   useEditorStore,
-  type EditorElement,
   type Point,
 } from "@/store/useEditorStore";
 import { IconButton, tools } from "./editor-controls";
-
-const CanvasElement = memo(function CanvasElement({
-  element,
-}: {
-  element: EditorElement;
-}) {
-  const selected = useEditorStore(
-    (state) => state.selectedElementId === element.id,
-  );
-  const Tag =
-    element.type === "button"
-      ? "button"
-      : element.type === "text"
-        ? "span"
-        : "div";
-
-  return (
-    <Tag
-      data-editor-element={element.id}
-      data-selected={selected}
-      className="canvas-element"
-      style={element.styles}
-      aria-label={element.name}
-      {...(element.type === "button"
-        ? { type: "button" as const, tabIndex: -1 }
-        : {})}
-    >
-      {element.type !== "frame" && element.name}
-      {element.children.map((child) => (
-        <CanvasElement key={child.id} element={child} />
-      ))}
-    </Tag>
-  );
-});
+import { CanvasRenderer } from "./CanvasRenderer";
 
 function isTextInput(target: EventTarget | null) {
   return (
@@ -69,14 +26,8 @@ function isTextInput(target: EventTarget | null) {
 }
 
 export function Canvas({ suspended = false }: { suspended?: boolean }) {
-  const {
-    elements,
-    activeTool,
-    canvasConfig,
-    setPan,
-    setZoom,
-    setSelectedElementId,
-  } = useEditorStore();
+  const { activeTool, canvasConfig, setPan, setZoom, setSelectedElementId } =
+    useEditorStore();
   const { zoom, pan } = canvasConfig;
   const viewportRef = useRef<HTMLElement>(null);
   const spaceRef = useRef(false);
@@ -89,6 +40,14 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
   const [spacePressed, setSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const activeToolLabel = tools.find((item) => item.id === activeTool)?.label;
+  const canInteract = useCallback(
+    () =>
+      !suspended &&
+      !suppressClickRef.current &&
+      !dragRef.current &&
+      !spaceRef.current,
+    [suspended],
+  );
 
   const finishPan = useCallback(() => {
     const viewport = viewportRef.current;
@@ -206,6 +165,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     )
       return;
     if (event.button !== 0 && event.button !== 1) return;
+    if (event.button === 0 && isTextInput(event.target)) return;
     suppressClickRef.current = false;
     event.currentTarget.focus({ preventScroll: true });
     if (event.button !== 1 && !spaceRef.current) return;
@@ -231,6 +191,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
 
   return (
     <section
+      id="editor-canvas"
       ref={viewportRef}
       aria-label="Design canvas"
       aria-describedby="canvas-navigation-help"
@@ -255,15 +216,20 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       onPointerCancel={finishPan}
       onLostPointerCapture={finishPan}
       onClick={(event) => {
-        if (suspended || suppressClickRef.current || activeTool !== "select")
-          return;
+        if (!canInteract()) return;
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("[data-canvas-ui]")) return;
-        setSelectedElementId(
-          target
-            ?.closest("[data-editor-element]")
-            ?.getAttribute("data-editor-element") ?? null,
-        );
+        const state = useEditorStore.getState();
+        if (state.activeTool === "select") {
+          setSelectedElementId(null);
+          return;
+        }
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const { zoom, pan } = state.canvasConfig;
+        state.addElement(null, state.activeTool, {
+          x: (event.clientX - bounds.left - pan.x) / zoom,
+          y: (event.clientY - bounds.top - pan.y) / zoom,
+        });
       }}
       onAuxClick={(event) => {
         if (event.button === 1) event.preventDefault();
@@ -275,21 +241,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
         }}
       >
-        {elements.map((element) => (
-          <div key={element.id} className="canvas-artboard">
-            <div
-              className="canvas-frame-label"
-              style={{ transform: `scale(${1 / zoom})` }}
-            >
-              <Monitor size={12} aria-hidden="true" />
-              <span>{element.name}</span>
-              <span>
-                {element.styles.width} × {element.styles.height}
-              </span>
-            </div>
-            <CanvasElement element={element} />
-          </div>
-        ))}
+        <CanvasRenderer canInteract={canInteract} />
       </div>
       <div className="canvas-breadcrumb" data-canvas-ui>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />

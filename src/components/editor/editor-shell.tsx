@@ -98,8 +98,14 @@ export function EditorShell() {
               aria-label={`${label} (${shortcut})`}
               aria-keyshortcuts={shortcut.toLowerCase()}
               aria-pressed={activeTool === id}
-              title={`${label} (${shortcut})`}
-              onClick={() => setActiveTool(id)}
+              title={`${label} (${shortcut})${id === "select" ? "" : " — click on the canvas or inside a frame to add"}`}
+              onClick={(event) => {
+                setActiveTool(id);
+                if (event.detail > 0)
+                  document
+                    .getElementById("editor-canvas")
+                    ?.focus({ preventScroll: true });
+              }}
               className="tool-button"
             >
               <Icon size={17} strokeWidth={1.7} aria-hidden="true" />

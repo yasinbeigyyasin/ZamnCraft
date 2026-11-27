@@ -6,6 +6,7 @@ export interface EditorElement {
   type: "frame" | "text" | "button";
   children: EditorElement[];
   styles: CSSProperties;
+  content?: string;
   // Animation data stays open until the animation schema is defined.
   animations: any;
 }

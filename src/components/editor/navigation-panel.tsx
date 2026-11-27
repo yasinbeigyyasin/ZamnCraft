@@ -1,5 +1,13 @@
 import { useId } from "react";
-import { CircleHelp, Frame, Home, Layers, LayoutTemplate } from "lucide-react";
+import {
+  CircleHelp,
+  Frame,
+  Home,
+  Layers,
+  LayoutTemplate,
+  Square,
+  Type,
+} from "lucide-react";
 import {
   useEditorStore,
   type EditorElement,
@@ -8,6 +16,13 @@ import {
 import { IconButton } from "./editor-controls";
 
 const tabs: SidebarTab[] = ["pages", "layers", "assets"];
+
+function countElements(elements: EditorElement[]): number {
+  return elements.reduce(
+    (count, element) => count + 1 + countElements(element.children),
+    0,
+  );
+}
 
 function ElementLayers({ elements }: { elements: EditorElement[] }) {
   const selectedElementId = useEditorStore((state) => state.selectedElementId);
@@ -22,7 +37,13 @@ function ElementLayers({ elements }: { elements: EditorElement[] }) {
             aria-pressed={selectedElementId === element.id}
             onClick={() => select(element.id)}
           >
-            <Frame size={13} aria-hidden="true" />
+            {element.type === "text" ? (
+              <Type size={13} aria-hidden="true" />
+            ) : element.type === "button" ? (
+              <Square size={13} aria-hidden="true" />
+            ) : (
+              <Frame size={13} aria-hidden="true" />
+            )}
             {element.name}
           </button>
           {element.children.length > 0 && (
@@ -94,7 +115,7 @@ export function NavigationPanel({ onHelp }: { onHelp: () => void }) {
               {item === "pages"
                 ? "1"
                 : item === "layers"
-                  ? elements.length
+                  ? countElements(elements)
                   : "0"}
             </span>
           </div>
