@@ -30,8 +30,8 @@ test("desktop keeps the specified panel dimensions and theme", async ({
     "rgb(10, 10, 10)",
   );
   const desktop = page.locator('[data-editor-element="desktop"]');
-  await expect(desktop).toHaveCSS("width", "1200px");
-  await expect(desktop).toHaveCSS("height", "800px");
+  await expect(desktop).toHaveCSS("width", "1920px");
+  await expect(desktop).toHaveCSS("height", "1080px");
   await expect(desktop).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(
     page.getByRole("button", { name: "About ZamnCraft" }),

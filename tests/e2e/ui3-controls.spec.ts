@@ -85,16 +85,16 @@ test("numeric arrows retain focus; scrubbing is live, accelerated, cancellable a
   const width = number(page, "Width");
   await width.focus();
   await width.press("ArrowUp");
-  await expect(width).toHaveValue("1201");
+  await expect(width).toHaveValue("1921");
   await width.press("Shift+ArrowUp");
-  await expect(width).toHaveValue("1211");
+  await expect(width).toHaveValue("1931");
   await width.press("Shift+ArrowDown");
-  await expect(width).toHaveValue("1201");
+  await expect(width).toHaveValue("1921");
   await expect(width).toBeFocused();
   await width.blur();
   await page.locator("#editor-canvas").focus();
   await page.keyboard.press("Control+z");
-  await expect(width).toHaveValue("1200");
+  await expect(width).toHaveValue("1920");
   const prefix = panel(page).getByRole("button", {
     name: "Scrub Width",
     exact: true,
@@ -105,24 +105,24 @@ test("numeric arrows retain focus; scrubbing is live, accelerated, cancellable a
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + 12, y);
-  await expect(width).toHaveValue("1212");
-  await expect(root(page)).toHaveCSS("width", "1212px");
+  await expect(width).toHaveValue("1932");
+  await expect(root(page)).toHaveCSS("width", "1932px");
   await page.mouse.up();
   await page.locator("#editor-canvas").focus();
   await page.keyboard.press("Control+z");
-  await expect(width).toHaveValue("1200");
+  await expect(width).toHaveValue("1920");
   await page.mouse.move(x, y);
   await page.keyboard.down("Shift");
   await page.mouse.down();
   await page.mouse.move(x + 5, y);
-  await expect(width).toHaveValue("1250");
+  await expect(width).toHaveValue("1970");
   await page.keyboard.press("Escape");
   await page.mouse.up();
   await page.keyboard.up("Shift");
-  await expect(width).toHaveValue("1200");
+  await expect(width).toHaveValue("1920");
   await width.fill("1450");
   await width.press("Escape");
-  await expect(width).toHaveValue("1200");
+  await expect(width).toHaveValue("1920");
 });
 
 test("custom menus support checkmarks, arrows, typeahead, dismissal and top-layer dialogs", async ({
@@ -205,11 +205,11 @@ test("Stack shortcut inserts a frame; Hand pans without moving elements; rename 
   await panel(page)
     .getByRole("button", { name: "Align Center", exact: true })
     .click();
-  await expect(stack).toHaveCSS("left", "500px");
+  await expect(stack).toHaveCSS("left", "860px");
   await panel(page)
     .getByRole("button", { name: "Align Bottom", exact: true })
     .click();
-  await expect(stack).toHaveCSS("top", "600px");
+  await expect(stack).toHaveCSS("top", "880px");
   const style = await stack.getAttribute("style");
   const before = await page.locator(".canvas-world").getAttribute("style");
   await page.locator("#editor-canvas").focus();

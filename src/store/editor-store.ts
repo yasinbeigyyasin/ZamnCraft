@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { scaleElementTree } from "@/lib/scale-element";
 import { BREAKPOINTS, createDesktop, createWorkspace } from "@/lib/workspace";
 import {
   canCreateComponent,
@@ -148,6 +149,11 @@ export interface EditorState {
     type: "frame" | "text" | "stack",
     position: Point,
   ) => string | null;
+  scaleElement: (
+    source: EditorElement,
+    factor: number,
+    rootStyles?: CSSProperties,
+  ) => void;
   updateText: (id: string, content: string) => void;
   updateStyles: (id: string, styles: CSSProperties) => void;
   updatePosition: (
@@ -512,7 +518,7 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
       if (
         get().isPreviewMode &&
         get().elements.some(
-          (element) => element.id === id && element.breakpoint,
+          (element) => element.id === id && element.type === "frame",
         )
       )
         set({ previewRootId: id });
@@ -704,16 +710,21 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
     setPreviewMode: (enabled) =>
       set((state) => {
         if (state.isPreviewMode === enabled) return state;
+        let selectedRoot = state.elements.find(
+          (root) =>
+            Boolean(
+              state.selectedElementId &&
+              findElementById([root], state.selectedElementId),
+            ) && root.type === "frame",
+        );
+        selectedRoot ??=
+          state.elements.find(
+            (root) => root.id === state.previewRootId && root.type === "frame",
+          ) ?? state.elements.find((root) => root.type === "frame");
         return enabled
           ? {
               isPreviewMode: true,
-              previewRootId:
-                state.elements.find(
-                  (element) =>
-                    element.id === state.previewRootId && element.breakpoint,
-                )?.id ??
-                state.elements.find((element) => element.breakpoint)?.id ??
-                null,
+              previewRootId: selectedRoot?.id ?? null,
               previewCanvasConfig: {
                 zoom: state.canvasConfig.zoom,
                 pan: { ...state.canvasConfig.pan },
@@ -836,6 +847,29 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         };
       });
       return createdId;
+    },
+    scaleElement: (source, factor, rootStyles = {}) => {
+      if (
+        get().isPreviewMode ||
+        !Number.isFinite(factor) ||
+        factor <= 0 ||
+        factor > 100
+      )
+        return;
+      set((state) => {
+        if (!findElementById(state.elements, source.id)) return state;
+        const scaled = scaleElementTree(source, factor, rootStyles);
+        const valid = (element: EditorElement): boolean =>
+          Object.values(element.styles).every(
+            (value) =>
+              typeof value !== "number" ||
+              (Number.isFinite(value) && Math.abs(value) <= 10000000),
+          ) && element.children.every(valid);
+        if (!valid(scaled)) return state;
+        return {
+          elements: updateElement(state.elements, source.id, () => scaled),
+        };
+      });
     },
     updateText: (id, content) =>
       set((state) => {

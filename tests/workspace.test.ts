@@ -27,8 +27,8 @@ test("breakpoints clone Desktop with independent IDs/effects, fixed widths and s
     mobile = store().addBreakpoint("mobile")!;
   assert.equal(node(tablet).styles.width, 810);
   assert.equal(node(mobile).styles.width, 390);
-  assert.equal(node(tablet).styles.left, 1280);
-  assert.equal(node(mobile).styles.left, 2170);
+  assert.equal(node(tablet).styles.left, 2000);
+  assert.equal(node(mobile).styles.left, 2890);
   assert.equal(node(tablet).children[0].content, "Shared starting content");
   assert.notEqual(node(tablet).effects, node("desktop").effects);
   const allIds = ids(store().elements);
@@ -295,6 +295,6 @@ test("multiple custom-size desktops persist without duplicate responsive breakpo
       .length,
     1,
   );
-  assert.equal(store().elements[0].styles.width, 1200);
+  assert.equal(store().elements[0].styles.width, 1920);
   assert.equal(store().elements[0].children.length, 0);
 });

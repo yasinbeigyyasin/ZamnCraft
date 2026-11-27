@@ -138,11 +138,18 @@ export function generateCode(
   elements: EditorElement[],
   framework: ExportFramework,
 ): string {
+  const desktop =
+    elements.find((element) => element.breakpoint === "desktop") ??
+    elements.find((element) => element.type === "frame");
+  const designWidth =
+    typeof desktop?.styles.width === "number" ? desktop.styles.width : 1920;
+  const designHeight =
+    typeof desktop?.styles.height === "number" ? desktop.styles.height : 1080;
   const responsive =
     elements.filter((element) => element.breakpoint).length > 1;
   const css = [
     `.zc-design, .zc-design * { box-sizing: border-box; }`,
-    `.zc-design { position: relative; width: 1200px; height: 800px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5; color: #fff; isolation: isolate; }`,
+    `.zc-design { position: relative; width: ${designWidth}px; height: ${designHeight}px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5; color: #fff; isolation: isolate; }`,
     `.zc-design button { font: inherit; color: inherit; border: 0; padding: 0; background: transparent; text-align: inherit; cursor: pointer; }`,
   ];
   const definitions: Definition[] = [];
@@ -314,7 +321,7 @@ export function generateCode(
       roots.filter((root) => root.breakpoint === breakpoint),
     );
     css.push(
-      `.zc-design { width: 100%; max-width: 1200px; height: ${variants[0].height}px; }`,
+      `.zc-design { width: 100%; max-width: ${designWidth}px; height: ${variants[0].height}px; }`,
     );
     for (const root of variants)
       css.push(

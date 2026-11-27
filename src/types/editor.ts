@@ -44,7 +44,8 @@ export interface EditorElement {
   animations: Record<string, unknown>;
 }
 
-export type EditorTool = "select" | "hand" | "frame" | "stack" | "text";
+export type EditorTool =
+  "select" | "scale" | "hand" | "frame" | "stack" | "text";
 export type SidebarTab = "pages" | "layers" | "assets";
 export type Point = { x: number; y: number };
 export type CanvasConfig = { zoom: number; pan: Point };

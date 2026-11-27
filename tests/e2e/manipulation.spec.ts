@@ -80,7 +80,7 @@ async function beginHandle(page: Page, node: Locator, handle: string) {
 }
 
 async function scale(page: Page) {
-  return (await root(page).boundingBox())!.width / 1200;
+  return (await root(page).boundingBox())!.width / 1920;
 }
 
 test.beforeEach(async ({ page }) => {
@@ -94,9 +94,9 @@ test.beforeEach(async ({ page }) => {
 test("nested children drag in parent-local coordinates at 25%, 100% and 200% zoom with live Inspector updates", async ({
   page,
 }) => {
-  const parent = await add(page, root(page), "Frame", 400, 300);
-  await setNumber(page, "X", 400);
-  await setNumber(page, "Y", 300);
+  const parent = await add(page, root(page), "Frame", 800, 400);
+  await setNumber(page, "X", 800);
+  await setNumber(page, "Y", 400);
   await setNumber(page, "Width", 500);
   await setNumber(page, "Height", 400);
   const child = await add(page, parent, "Frame", 40, 50);
@@ -140,7 +140,7 @@ test("nested children drag in parent-local coordinates at 25%, 100% and 200% zoo
       "style",
       transform!,
     );
-    await expect(parent).toHaveCSS("left", "400px");
+    await expect(parent).toHaveCSS("left", "800px");
   }
 });
 
@@ -196,7 +196,10 @@ test("all eight resize handles update live sizes, offsets and badge while anchor
 test("resize cannot flip or create negative dimensions and Escape restores Fill/Fit sizing", async ({
   page,
 }) => {
-  const parent = await add(page, root(page), "Frame", 100, 100);
+  const parent = await add(page, root(page), "Frame", 800, 400);
+  await page
+    .getByRole("button", { name: /Canvas zoom .*reset to 100%/ })
+    .click();
   await setNumber(page, "Width", 400);
   await setNumber(page, "Height", 300);
   const text = await add(page, parent, "Text", 10, 50);
@@ -228,7 +231,11 @@ test("resize cannot flip or create negative dimensions and Escape restores Fill/
   );
   expect(await geometry(text)).toEqual(before);
   point = await beginHandle(page, text, "nw");
-  await page.mouse.move(point.x + 500, point.y + 300, { steps: 5 });
+  await page.mouse.move(
+    point.x + 1000 * (await scale(page)),
+    point.y + 1000 * (await scale(page)),
+    { steps: 5 },
+  );
   await page.mouse.up();
   await page.keyboard.up("Alt");
   const after = await geometry(text);
@@ -251,11 +258,11 @@ test("parent centers, parent edges and sibling edges snap with guides during mov
   const z = await scale(page);
   let before = await geometry(child);
   let point = await begin(page, child);
-  await page.mouse.move(point.x + (497 - before.x) * z, point.y, { steps: 5 });
-  await expect(field(page, "X")).toHaveValue("500");
+  await page.mouse.move(point.x + (857 - before.x) * z, point.y, { steps: 5 });
+  await expect(field(page, "X")).toHaveValue("860");
   await expect(page.locator('[data-guide-axis="x"]')).toHaveCSS(
     "left",
-    "600px",
+    "960px",
   );
   await page.mouse.up();
   await expect(page.locator(".canvas-alignment-guide")).toHaveCount(0);

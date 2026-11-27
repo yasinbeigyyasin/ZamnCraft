@@ -22,8 +22,8 @@ export function NewDesktopDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const close = useRef<HTMLButtonElement>(null);
-  const [width, setWidth] = useState(1440),
-    [height, setHeight] = useState(900);
+  const [width, setWidth] = useState(1920),
+    [height, setHeight] = useState(1080);
   const valid =
     Number.isInteger(width) &&
     Number.isInteger(height) &&

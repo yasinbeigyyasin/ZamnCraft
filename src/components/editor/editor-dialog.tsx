@@ -108,20 +108,22 @@ export function EditorDialog({
             removes the selected layer and its children when you are not typing.
             Use the Inspector to adjust position, size, layout, styles, and
             typography. In Select mode, drag an element to move it or use its
-            eight handles to resize. Edges and centers snap to the parent and
-            siblings; hold Alt or Option to bypass snapping. Escape cancels an
-            active drag or resize. In Effects & Animations, enable appear,
-            hover, or press effects and set their transition. Replay animation
-            tests appear on the editing canvas. Play opens the live preview
-            without editing handles; press Escape or Exit preview to return to
-            your selection and camera. Press C or use Create Component in Assets
-            to turn a selected subtree into a master. Insert linked instances
-            from Assets; edits to the master update them across pages. Detach an
-            instance to edit it independently. Pages supports adding, renaming,
-            deleting, and switching page canvases. Export Code generates React,
-            Vue, Svelte, or HTML/CSS for the current page, with copy and
-            download controls. Add Tablet or Mobile with the canvas breakpoint
-            controls; choose a variant in Preview. Ctrl/Cmd+Z undoes;
+            eight handles to resize. Choose Scale (K) to scale proportions,
+            text, spacing, borders, and contents together. Edges and centers
+            snap to the parent and siblings; hold Alt or Option to bypass
+            snapping. Escape cancels an active drag or resize. In Effects &
+            Animations, enable appear, hover, or press effects and set their
+            transition. Replay animation tests appear on the editing canvas.
+            Play opens the live preview without editing handles; press Escape or
+            Exit preview to return to your selection and camera. Press C or use
+            Create Component in Assets to turn a selected subtree into a master.
+            Insert linked instances from Assets; edits to the master update them
+            across pages. Detach an instance to edit it independently. Pages
+            supports adding, renaming, deleting, and switching page canvases.
+            Export Code generates React, Vue, Svelte, or HTML/CSS for the
+            current page, with copy and download controls. Add Tablet or Mobile
+            with the canvas breakpoint controls; choose any top-level frame,
+            including custom desktops, in Preview. Ctrl/Cmd+Z undoes;
             Ctrl/Cmd+Shift+Z or Ctrl+Y redoes. A history shortcut during a drag
             cancels it first. Open Local workspace to rename, reset, or load a
             starter. Changes save automatically in this browser; history lasts

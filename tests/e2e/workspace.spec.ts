@@ -50,7 +50,7 @@ test("Tablet and Mobile copy the Desktop tree at 810/390px side by side and prev
   const desktop = page.locator('[data-breakpoint="desktop"]'),
     tablet = page.locator('[data-breakpoint="tablet"]'),
     mobile = page.locator('[data-breakpoint="mobile"]');
-  await expect(desktop).toHaveCSS("width", "1200px");
+  await expect(desktop).toHaveCSS("width", "1920px");
   await expect(tablet).toHaveCSS("width", "810px");
   await expect(mobile).toHaveCSS("width", "390px");
   await expect(tablet.locator('[data-element-type="frame"]')).toHaveCount(1);
@@ -67,16 +67,16 @@ test("Tablet and Mobile copy the Desktop tree at 810/390px side by side and prev
   expect(new Set(allIds).size).toBe(allIds.length);
   const camera = await page.locator(".canvas-world").getAttribute("style");
   await page.getByRole("button", { name: "Preview site", exact: true }).click();
-  await expect(desktop).toBeVisible();
+  await expect(mobile).toBeVisible();
   await choose(
-    page.getByRole("combobox", { name: "Preview breakpoint", exact: true }),
+    page.getByRole("combobox", { name: "Preview frame", exact: true }),
     { label: "Mobile · 390px" },
   );
   await expect(mobile).toBeVisible();
   await expect(desktop).toHaveCount(0);
   await choose(
-    page.getByRole("combobox", { name: "Preview breakpoint", exact: true }),
-    { label: "Desktop · 1200px" },
+    page.getByRole("combobox", { name: "Preview frame", exact: true }),
+    { label: "Desktop · 1920px" },
   );
   await expect(desktop).toBeVisible();
   await expect(mobile).toHaveCount(0);

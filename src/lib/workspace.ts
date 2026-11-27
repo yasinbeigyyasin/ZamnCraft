@@ -9,7 +9,7 @@ import { createDefaultEffects, mergeEffects } from "./element-effects";
 
 export const WORKSPACE_KEY = "zamncraft.workspace.v1";
 export const BREAKPOINTS = [
-  { id: "desktop", name: "Desktop", width: 1200 },
+  { id: "desktop", name: "Desktop", width: 1920 },
   { id: "tablet", name: "Tablet", width: 810 },
   { id: "mobile", name: "Mobile", width: 390 },
 ] as const;
@@ -23,8 +23,8 @@ export function createDesktop(id = "desktop"): EditorElement {
     children: [],
     styles: {
       position: "relative",
-      width: 1200,
-      height: 800,
+      width: 1920,
+      height: 1080,
       backgroundColor: "#ffffff",
       color: "#111111",
     },

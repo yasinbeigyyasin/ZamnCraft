@@ -47,7 +47,7 @@ test("new desktop presets and custom dimensions create independent, persistent a
   });
   await width.fill("1500");
   await width.press("Escape");
-  await expect(width).toHaveValue("1440");
+  await expect(width).toHaveValue("1920");
   await expect(dialog).toBeVisible();
   await width.fill("1366.5");
   await width.blur();

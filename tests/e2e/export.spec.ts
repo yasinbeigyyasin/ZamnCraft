@@ -213,7 +213,7 @@ test("standalone HTML preserves literal hostile text and geometry and runs hover
   await expect(text).toHaveCSS("width", "200px");
   expect(
     await text.evaluate((element) => element.getBoundingClientRect().x),
-  ).toBeCloseTo(120, 0);
+  ).toBeCloseTo(192, 0);
   expect(await exported.locator("script").count()).toBe(0);
   await text.hover();
   await expect(text).toHaveCSS("background-color", "rgb(0, 153, 255)");

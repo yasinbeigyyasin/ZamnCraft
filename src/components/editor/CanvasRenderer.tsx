@@ -54,7 +54,9 @@ const ElementNode = memo(function ElementNodeView({
     selected ? state.canvasConfig.zoom : 1,
   );
   const showHandles = useEditorStore(
-    (state) => selected && state.activeTool === "select",
+    (state) =>
+      selected &&
+      (state.activeTool === "select" || state.activeTool === "scale"),
   );
   const nodeRef = useRef<HTMLElement | null>(null);
   const motion = useElementEffects(nodeRef, element, preview);
@@ -122,7 +124,7 @@ const ElementNode = memo(function ElementNodeView({
       event.stopPropagation();
       return;
     }
-    if (state.activeTool === "select") {
+    if (state.activeTool === "select" || state.activeTool === "scale") {
       event.stopPropagation();
       state.setSelectedElementId(element.id);
       return;
@@ -318,10 +320,7 @@ export function CanvasRenderer({
 
   const previewRootId = useEditorStore((state) => state.previewRootId);
   return elements
-    .filter(
-      (element) =>
-        !preview || !element.breakpoint || element.id === previewRootId,
-    )
+    .filter((element) => !preview || element.id === previewRootId)
     .map((element) => (
       <div
         key={element.id}

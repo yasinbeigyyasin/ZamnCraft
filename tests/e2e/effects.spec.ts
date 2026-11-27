@@ -18,8 +18,8 @@ async function setup(page: Page) {
   await page.getByRole("button", { name: "Frame (F)", exact: true }).click();
   const box = (await root.boundingBox())!;
   await page.mouse.click(
-    Math.round(box.x + (120 * box.width) / 1200),
-    Math.round(box.y + (130 * box.width) / 1200),
+    Math.round(box.x + (120 * box.width) / 1920),
+    Math.round(box.y + (130 * box.width) / 1920),
   );
   const node = root.locator(':scope > [data-element-type="frame"]');
   return { node, root };

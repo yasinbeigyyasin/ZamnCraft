@@ -9,9 +9,14 @@ import {
   type PointerEvent,
   type RefObject,
 } from "react";
-import { findElementById, useEditorStore } from "@/store/editor-store";
+import {
+  findElementById,
+  useEditorStore,
+  type EditorElement,
+} from "@/store/editor-store";
 import {
   manipulateRect,
+  scaleRect,
   RESIZE_HANDLES,
   type AlignmentGuide,
   type CanvasRect,
@@ -19,6 +24,8 @@ import {
 } from "@/lib/canvas-geometry";
 
 type Gesture = {
+  mode: "select" | "scale";
+  source: EditorElement;
   id: string;
   pointerId: number;
   node: HTMLElement;
@@ -58,7 +65,9 @@ export function useCanvasManipulation(
   useEffect(() => {
     if (
       gesture.current &&
-      (suspended || tool !== "select" || selectedId !== gesture.current.id)
+      (suspended ||
+        tool !== gesture.current.mode ||
+        selectedId !== gesture.current.id)
     )
       finish(true);
   }, [suspended, tool, selectedId, finish]);
@@ -99,7 +108,7 @@ export function useCanvasManipulation(
       !target ||
       gesture.current ||
       suspended ||
-      state.activeTool !== "select" ||
+      (state.activeTool !== "select" && state.activeTool !== "scale") ||
       event.button !== 0 ||
       !event.isPrimary ||
       target.isContentEditable ||
@@ -153,6 +162,16 @@ export function useCanvasManipulation(
     }
     const positioned = getComputedStyle(parent ? node : node.parentElement!);
     gesture.current = {
+      mode: state.activeTool,
+      source: {
+        ...element,
+        styles: {
+          ...element.styles,
+          fontSize:
+            element.styles.fontSize ??
+            parseFloat(getComputedStyle(node).fontSize),
+        },
+      },
       id,
       node,
       pointerId: event.pointerId,
@@ -184,7 +203,6 @@ export function useCanvasManipulation(
     node.setPointerCapture(event.pointerId);
     if (handle) {
       event.preventDefault();
-      suppressClick();
     }
   }
 
@@ -207,6 +225,27 @@ export function useCanvasManipulation(
     suppressClick();
     setActive(true);
     event.preventDefault();
+    if (current.mode === "scale" && current.handle) {
+      const { rect, factor } = scaleRect(
+        current.rect,
+        {
+          x: (event.clientX - current.start.x) / current.zoom,
+          y: (event.clientY - current.start.y) / current.zoom,
+        },
+        current.handle,
+      );
+      useEditorStore.getState().scaleElement(current.source, factor, {
+        width: rect.width,
+        height: rect.height,
+        minWidth: 0,
+        minHeight: 0,
+        flexShrink: 0,
+        left: current.origin.left + rect.x - current.rect.x,
+        top: current.origin.top + rect.y - current.rect.y,
+      });
+      setGuides([]);
+      return;
+    }
     const { rect, guides } = manipulateRect(
       current.rect,
       {

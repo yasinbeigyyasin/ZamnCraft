@@ -11,7 +11,7 @@ afterEach(() =>
   useEditorStore.setState(useEditorStore.getInitialState(), true),
 );
 
-test("editor starts with a white 1200 × 800 Desktop frame and independent UI state", () => {
+test("editor starts with a white 1920 × 1080 Desktop frame and independent UI state", () => {
   const state = useEditorStore.getState();
   assert.equal(state.activeTool, "select");
   assert.equal(state.selectedElementId, null);
@@ -26,8 +26,8 @@ test("editor starts with a white 1200 × 800 Desktop frame and independent UI st
     children: [],
     styles: {
       position: "relative",
-      width: 1200,
-      height: 800,
+      width: 1920,
+      height: 1080,
       backgroundColor: "#ffffff",
       color: "#111111",
     },
@@ -347,7 +347,7 @@ test("new desktops have independent dimensions, blank content, safe placement an
   assert.equal(added.name, "Desktop 1920 × 1080");
   assert.equal(added.styles.width, 1920);
   assert.equal(added.styles.height, 1080);
-  assert.equal(added.styles.left, 1280);
+  assert.equal(added.styles.left, 2000);
   assert.equal(added.styles.backgroundColor, "#ffffff");
   assert.equal(added.breakpoint, undefined);
   assert.deepEqual(added.children, []);
@@ -356,7 +356,7 @@ test("new desktops have independent dimensions, blank content, safe placement an
   const second = state.addDesktop(1366, 768)!;
   assert.equal(
     findElementById(useEditorStore.getState().elements, second)!.styles.left,
-    3280,
+    4000,
   );
   state.undo();
   assert.equal(

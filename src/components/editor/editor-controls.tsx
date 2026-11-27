@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import {
   Frame,
+  Scaling,
   Hand,
   Layers,
   MousePointer2,
@@ -16,6 +17,7 @@ export const tools: {
   icon: LucideIcon;
 }[] = [
   { id: "select", label: "Select", shortcut: "V", icon: MousePointer2 },
+  { id: "scale", label: "Scale", shortcut: "K", icon: Scaling },
   { id: "hand", label: "Hand", shortcut: "H", icon: Hand },
   { id: "frame", label: "Frame", shortcut: "F", icon: Frame },
   { id: "stack", label: "Stack", shortcut: "S", icon: Layers },

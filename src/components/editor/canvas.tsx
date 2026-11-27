@@ -114,13 +114,13 @@ export function Canvas({
           typeof root.styles.width === "number"
             ? root.styles.width
             : root.type === "frame"
-              ? 1200
+              ? 1920
               : 200,
         height:
           typeof root.styles.height === "number"
             ? root.styles.height
             : root.type === "frame"
-              ? 800
+              ? 1080
               : 24,
       }));
       const left = Math.min(...boxes.map((box) => box.x)),
@@ -309,10 +309,10 @@ export function Canvas({
     >
       {preview ? (
         <PopoverSelect
-          label="Preview breakpoint"
+          label="Preview frame"
           value={previewRootId ?? ""}
           options={elements
-            .filter((element) => element.breakpoint)
+            .filter((element) => element.type === "frame")
             .map((element) => ({
               value: element.id,
               label: `${element.name} · ${element.styles.width}px`,
@@ -428,7 +428,7 @@ export function Canvas({
         if (target?.closest("[data-canvas-ui]")) return;
         const state = useEditorStore.getState();
         if (state.activeTool === "hand") return;
-        if (state.activeTool === "select") {
+        if (state.activeTool === "select" || state.activeTool === "scale") {
           setSelectedElementId(null);
           return;
         }
@@ -524,7 +524,9 @@ export function Canvas({
           ? "Live preview · Esc to exit"
           : isPanning
             ? "Panning"
-            : `${activeToolLabel} selected`}
+            : activeTool === "scale"
+              ? "Scale · drag a handle to scale proportionally"
+              : `${activeToolLabel} selected`}
       </p>
       <p
         id="canvas-navigation-help"

@@ -177,7 +177,7 @@ export function EditorShell() {
               aria-label={`${label} (${shortcut})`}
               aria-keyshortcuts={shortcut.toLowerCase()}
               aria-pressed={activeTool === id}
-              title={`${label} (${shortcut})${id === "select" ? "" : " — click on the canvas or inside a frame to add"}`}
+              title={`${label} (${shortcut})${id === "select" ? "" : id === "scale" ? " — drag a handle to scale selection and contents" : id === "hand" ? " — drag to pan" : " — click on the canvas or inside a frame to add"}`}
               onClick={(event) => {
                 setActiveTool(id);
                 if (event.detail > 0)

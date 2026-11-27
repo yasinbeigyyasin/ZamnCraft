@@ -124,7 +124,7 @@ test("invalid numeric patches and unknown IDs are no-ops", () => {
   state.updateLayout("missing", "grid");
   state.updatePosition("missing", { left: 20 });
   state.updateSize("missing", "height", "fill");
-  state.updateStyles("desktop", { width: 1200 });
+  state.updateStyles("desktop", { width: 1920 });
   state.updateLayout("desktop", "free");
   assert.equal(useEditorStore.getState(), previous);
 });

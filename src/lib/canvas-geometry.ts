@@ -101,3 +101,54 @@ export function manipulateRect(
   }
   return { rect, guides };
 }
+
+/** Uniform scale about the opposite handle. Edge handles keep the cross-axis centered. */
+export function scaleRect(
+  initial: CanvasRect,
+  delta: { x: number; y: number },
+  handle: ResizeHandle,
+): { rect: CanvasRect; factor: number } {
+  const horizontal = handle.includes("w") || handle.includes("e");
+  const vertical = handle.includes("n") || handle.includes("s");
+  const dx = delta.x * (handle.includes("w") ? -1 : 1);
+  const dy = delta.y * (handle.includes("n") ? -1 : 1);
+  const change =
+    horizontal && vertical
+      ? (dx * initial.width + dy * initial.height) /
+        (initial.width ** 2 + initial.height ** 2)
+      : horizontal
+        ? dx / initial.width
+        : dy / initial.height;
+  const factor = Math.min(
+    100,
+    Math.max(
+      0.01,
+      1 / Math.max(1, initial.width),
+      1 / Math.max(1, initial.height),
+      1 + change,
+    ),
+  );
+  const width = initial.width * factor,
+    height = initial.height * factor;
+  return {
+    factor,
+    rect: {
+      x:
+        initial.x +
+        (handle.includes("w")
+          ? initial.width - width
+          : horizontal
+            ? 0
+            : (initial.width - width) / 2),
+      y:
+        initial.y +
+        (handle.includes("n")
+          ? initial.height - height
+          : vertical
+            ? 0
+            : (initial.height - height) / 2),
+      width,
+      height,
+    },
+  };
+}

@@ -59,7 +59,7 @@ test("selection enables properties, position and size move the canvas, and switc
   const root = page.locator(rootSelector);
   await root.click({ position: { x: 10, y: 10 } });
   await expect(field(page, "Width")).toBeEnabled();
-  await expect(field(page, "Width")).toHaveValue("1200");
+  await expect(field(page, "Width")).toHaveValue("1920");
   const frame = await insert(page, root, "Frame");
   await setNumber(page, "X", -20.5);
   await setNumber(page, "Y", 45);
@@ -74,7 +74,7 @@ test("selection enables properties, position and size move the canvas, and switc
   );
   const rootBox = (await root.boundingBox())!;
   const box = (await frame.boundingBox())!;
-  expect(box.x).toBeCloseTo(rootBox.x - (20.5 * rootBox.width) / 1200, 1);
+  expect(box.x).toBeCloseTo(rootBox.x - (20.5 * rootBox.width) / 1920, 1);
   await choose(
     inspector(page).getByRole("group", { name: "Position type", exact: true }),
     "relative",
@@ -108,11 +108,11 @@ test("Fixed, Fill and Fit sizing update real geometry and the inspector reports 
   });
   await choose(widthMode, "fill");
   await choose(heightMode, "fill");
-  await expect(frame).toHaveCSS("width", "1200px");
-  await expect(frame).toHaveCSS("height", "800px");
-  await expect(field(page, "Width")).toHaveValue("1200");
+  await expect(frame).toHaveCSS("width", "1920px");
+  await expect(frame).toHaveCSS("height", "1080px");
+  await expect(field(page, "Width")).toHaveValue("1920");
   await choose(widthMode, "fixed");
-  await expect(field(page, "Width")).toHaveValue("1200");
+  await expect(field(page, "Width")).toHaveValue("1920");
   await setNumber(page, "Width", 400);
   await setNumber(page, "Height", 250);
   await choose(widthMode, "fill");
@@ -141,7 +141,7 @@ test("Fixed, Fill and Fit sizing update real geometry and the inspector reports 
   await setNumber(page, "X", -50);
   await expect(root.locator("..")).toHaveCSS("left", "-50px");
   await choose(widthMode, "fill");
-  await expect(root).toHaveCSS("width", "1200px");
+  await expect(root).toHaveCSS("width", "1920px");
 });
 
 test("fill, custom color picker, opacity, radius and border are live and invalid drafts do not corrupt styles", async ({
@@ -216,14 +216,18 @@ test("Stack and Grid arrange existing children with direction, gap, padding, ali
   await expect(parent).toHaveCSS("gap", "16px");
   const verticalFirst = (await firstNode.boundingBox())!;
   const verticalSecond = (await second.boundingBox())!;
-  expect(verticalSecond.y).toBeGreaterThan(verticalFirst.y + 100);
+  expect(verticalSecond.y).toBeGreaterThan(
+    verticalFirst.y + verticalFirst.height,
+  );
   await choose(
     panel.getByRole("group", { name: "Direction", exact: true }),
     "row",
   );
   const horizontalFirst = (await firstNode.boundingBox())!;
   const horizontalSecond = (await second.boundingBox())!;
-  expect(horizontalSecond.x).toBeGreaterThan(horizontalFirst.x + 100);
+  expect(horizontalSecond.x).toBeGreaterThan(
+    horizontalFirst.x + horizontalFirst.width,
+  );
   expect(horizontalSecond.y).toBeCloseTo(horizontalFirst.y, 1);
   await selectLayer(page, second);
   await choose(
