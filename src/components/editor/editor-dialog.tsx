@@ -26,19 +26,19 @@ const emptyStates = {
     icon: Code2,
     heading: "Something great is on its way.",
     description:
-      "There are no elements to export yet. Code generation will be available when canvas editing is added.",
+      "Your Desktop frame is ready. Code generation will be added in a later step.",
   },
   preview: {
     icon: Globe,
-    heading: "Your canvas is still empty.",
+    heading: "Your Desktop frame is ready.",
     description:
-      "Your website preview will appear here once you can add elements to the canvas.",
+      "Live website preview will be added after element editing. For now, explore your frame on the canvas.",
   },
   project: {
     icon: File,
     heading: "A new beginning.",
     description:
-      "This is the ZamnCraft editor shell. UI state lasts for this session only; nothing is stored on a server.",
+      "This is the ZamnCraft editor with an infinite canvas. UI state lasts for this session only; nothing is stored on a server.",
   },
 };
 
@@ -110,8 +110,9 @@ export function EditorDialog({
             ))}
           </div>
           <p className="dialog-description">
-            This step selects tools only. Drawing, text editing, and element
-            properties are not available yet. Zoom adjusts the canvas grid.
+            Hold Space and drag, or drag with the middle mouse button, to pan.
+            Hold Ctrl or Cmd and scroll to zoom at the pointer. Drawing, text
+            editing, and property editing come in later steps.
           </p>
         </div>
       ) : (

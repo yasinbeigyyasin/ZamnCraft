@@ -48,28 +48,43 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Step 1: editor shell
+## Step 2: state management and infinite canvas
 
-- 48px toolbar, 256px navigation panel, flexible dotted canvas, and 288px inspector on desktop.
-- Tool selection with V / F / T / S / C shortcuts. Shortcuts ignore text fields, composition, modifiers, repeated or already-handled events, and open dialogs.
-- Pages, Layers, and Assets tabs with arrow-key, Home, and End navigation and unique panel IDs.
-- Zustand UI state and 25–200% canvas-grid zoom, with disabled controls at the limits.
-- Native modal dialogs with background interaction blocked, Escape dismissal, and trigger focus restoration.
-- Inspector access below 1040px and navigation access below 760px through toolbar buttons; panels are not silently removed on smaller screens.
-- Shared theme tokens, visible keyboard focus, and reduced-motion support. Export retains the requested blue with dark text for contrast.
+The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, as required for Step 2.
 
-This step does not create or manipulate elements. Inspector properties are disabled visual placeholders. Preview and Export Code explain the current limitation rather than pretending to generate a website. State is in memory, with no backend or persistence. The original hand-tool icon is retained as a disabled placeholder until canvas panning is implemented.
+### State and data
+
+`EditorElement` describes a recursive tree with `id`, `name`, `type` (`frame`, `text`, or `button`), `children`, React `CSSProperties`, and an open `animations` payload. The default tree contains one Desktop root frame.
+
+`useEditorStore` owns `elements`, `selectedElementId`, `activeTool` (`select`, `frame`, or `text`), `canvasConfig`, and the existing navigation tab. Canvas zoom is a **scale factor** (`1 = 100%`), bounded to 0.25–2. Pan uses viewport pixels and has no positional boundary. Invalid numeric values are ignored. Changing or replacing the tree clears selections that no longer exist.
+
+### Canvas controls
+
+- **Pan:** hold Space and left-drag on the canvas, or middle-mouse drag with any tool. Pointer capture keeps the drag working outside the canvas; release, cancellation, window blur, or opening a dialog ends the gesture.
+- **Zoom:** Ctrl/Cmd + mouse wheel, anchored under the pointer. The non-passive wheel handler prevents browser zoom. Plain scrolling does not zoom.
+- **Zoom display:** bottom-right controls show the current percentage, zoom in/out, and reset to 100%. Button zoom is anchored at the viewport center.
+- **Fit view:** fits the Desktop frame on first load; the fit-view button recenters it for the current viewport. Resizing the viewport does not automatically discard the user's pan/zoom.
+- **Select:** click an element in Select mode or its Layers entry. Click empty canvas space to clear the selection. Panning does not change selection.
+- **Tools:** V / F / T select the supported tools. Stack and Component stay visible but disabled. Drawing and text insertion are not part of this step.
+
+The frame/text/button renderer walks the element tree recursively. Chrome, zoom controls, and breadcrumbs stay outside the transformed world. Grid spacing and origin follow the world transform. Text and button nodes use their name as their display text until content editing is added.
+
+Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
+
+Property controls, preview, and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. No UI for adding, moving, or resizing elements is included yet.
 
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, blue page and tool selections, and the illustrated canvas empty state. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Step 2 replaces only the canvas empty state with the requested Desktop frame and navigation controls. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
-- `src/components/editor/editor-shell.tsx`: layout, toolbar, canvas, and shortcut handling.
-- `src/components/editor/navigation-panel.tsx`: tabs and project placeholders.
+- `src/components/editor/editor-shell.tsx`: layout, toolbar, and tool shortcuts.
+- `src/components/editor/canvas.tsx`: transformed element tree, selection, pan, zoom, and fit view.
+- `src/types/editor.ts`: element, tool, and canvas data types.
+- `src/components/editor/navigation-panel.tsx`: tabs, recursive layer list, and selection.
 - `src/components/editor/inspector-panel.tsx`: disabled property controls.
 - `src/components/editor/editor-dialog.tsx`: modal lifecycle and empty states.
 - `src/components/editor/editor-controls.tsx`: shared icon button and tool definitions.
-- `src/store/editor-store.ts`: UI state and zoom limits.
+- `src/store/useEditorStore.ts`: element tree, selection, tool state, and canvas actions.
 - `src/app/globals.css`: theme, control styles, and responsive layout.

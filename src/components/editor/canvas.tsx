@@ -1,0 +1,351 @@
+"use client";
+
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import {
+  ChevronRight,
+  Hand,
+  Home,
+  Maximize,
+  Minus,
+  Monitor,
+  Plus,
+} from "lucide-react";
+import {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  useEditorStore,
+  type EditorElement,
+  type Point,
+} from "@/store/useEditorStore";
+import { IconButton, tools } from "./editor-controls";
+
+const CanvasElement = memo(function CanvasElement({
+  element,
+}: {
+  element: EditorElement;
+}) {
+  const selected = useEditorStore(
+    (state) => state.selectedElementId === element.id,
+  );
+  const Tag =
+    element.type === "button"
+      ? "button"
+      : element.type === "text"
+        ? "span"
+        : "div";
+
+  return (
+    <Tag
+      data-editor-element={element.id}
+      data-selected={selected}
+      className="canvas-element"
+      style={element.styles}
+      aria-label={element.name}
+      {...(element.type === "button"
+        ? { type: "button" as const, tabIndex: -1 }
+        : {})}
+    >
+      {element.type !== "frame" && element.name}
+      {element.children.map((child) => (
+        <CanvasElement key={child.id} element={child} />
+      ))}
+    </Tag>
+  );
+});
+
+function isTextInput(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      !!target.closest("input, textarea, select, [role='textbox']"))
+  );
+}
+
+export function Canvas({ suspended = false }: { suspended?: boolean }) {
+  const {
+    elements,
+    activeTool,
+    canvasConfig,
+    setPan,
+    setZoom,
+    setSelectedElementId,
+  } = useEditorStore();
+  const { zoom, pan } = canvasConfig;
+  const viewportRef = useRef<HTMLElement>(null);
+  const spaceRef = useRef(false);
+  const dragRef = useRef<{
+    pointerId: number;
+    start: Point;
+    pan: Point;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [spacePressed, setSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const activeToolLabel = tools.find((item) => item.id === activeTool)?.label;
+
+  const finishPan = useCallback(() => {
+    const viewport = viewportRef.current;
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (drag && viewport?.hasPointerCapture(drag.pointerId))
+      viewport.releasePointerCapture(drag.pointerId);
+    setIsPanning(false);
+  }, []);
+
+  const fitToView = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const { width, height } = viewport.getBoundingClientRect();
+    const root = useEditorStore.getState().elements[0];
+    if (!root || width <= 0 || height <= 0) return;
+    const rootWidth =
+      typeof root.styles.width === "number" ? root.styles.width : 1200;
+    const rootHeight =
+      typeof root.styles.height === "number" ? root.styles.height : 800;
+    const nextZoom = Math.max(
+      MIN_ZOOM,
+      Math.min(1, (width - 96) / rootWidth, (height - 144) / rootHeight),
+    );
+    setZoom(nextZoom);
+    setPan({
+      x: (width - rootWidth * nextZoom) / 2,
+      y: (height - rootHeight * nextZoom) / 2,
+    });
+  }, [setPan, setZoom]);
+
+  useEffect(() => {
+    fitToView();
+  }, [fitToView]);
+
+  useEffect(() => {
+    function clearGesture() {
+      spaceRef.current = false;
+      setSpacePressed(false);
+      finishPan();
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        suspended ||
+        event.code !== "Space" ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isTextInput(event.target)
+      )
+        return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest("button, a, [role='tab']")
+      )
+        return;
+      event.preventDefault();
+      spaceRef.current = true;
+      setSpacePressed(true);
+    }
+    function handleKeyUp(event: KeyboardEvent) {
+      if (event.code !== "Space") return;
+      spaceRef.current = false;
+      setSpacePressed(false);
+    }
+    function handleVisibility() {
+      if (document.hidden) clearGesture();
+    }
+    if (suspended) clearGesture();
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", clearGesture);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", clearGesture);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [suspended, finishPan]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    function handleWheel(event: WheelEvent) {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      if (suspended || dragRef.current) return;
+      const rect = viewport!.getBoundingClientRect();
+      const unit =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? rect.height
+            : 1;
+      const delta = Math.max(-1000, Math.min(1000, event.deltaY * unit));
+      const currentZoom = useEditorStore.getState().canvasConfig.zoom;
+      setZoom(currentZoom * Math.exp(-delta * 0.002), {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
+    // A passive wheel listener cannot prevent the browser's own Ctrl/Cmd zoom.
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", handleWheel);
+  }, [suspended, setZoom]);
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
+    if (
+      suspended ||
+      (event.target instanceof Element &&
+        event.target.closest("[data-canvas-ui]"))
+    )
+      return;
+    if (event.button !== 0 && event.button !== 1) return;
+    suppressClickRef.current = false;
+    event.currentTarget.focus({ preventScroll: true });
+    if (event.button !== 1 && !spaceRef.current) return;
+    event.preventDefault();
+    dragRef.current = {
+      pointerId: event.pointerId,
+      start: { x: event.clientX, y: event.clientY },
+      pan: { ...useEditorStore.getState().canvasConfig.pan },
+    };
+    suppressClickRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsPanning(true);
+  }
+
+  function zoomFromCenter(nextZoom: number) {
+    const viewport = viewportRef.current;
+    if (viewport)
+      setZoom(nextZoom, {
+        x: viewport.clientWidth / 2,
+        y: viewport.clientHeight / 2,
+      });
+  }
+
+  return (
+    <section
+      ref={viewportRef}
+      aria-label="Design canvas"
+      aria-describedby="canvas-navigation-help"
+      tabIndex={0}
+      className={`canvas canvas-tool-${activeTool} ${spacePressed ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""}`}
+      style={{
+        backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+        backgroundPosition: `${pan.x}px ${pan.y}px`,
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={(event) => {
+        const drag = dragRef.current;
+        if (drag && drag.pointerId === event.pointerId)
+          setPan({
+            x: drag.pan.x + event.clientX - drag.start.x,
+            y: drag.pan.y + event.clientY - drag.start.y,
+          });
+      }}
+      onPointerUp={(event) => {
+        if (event.pointerId === dragRef.current?.pointerId) finishPan();
+      }}
+      onPointerCancel={finishPan}
+      onLostPointerCapture={finishPan}
+      onClick={(event) => {
+        if (suspended || suppressClickRef.current || activeTool !== "select")
+          return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest("[data-canvas-ui]")) return;
+        setSelectedElementId(
+          target
+            ?.closest("[data-editor-element]")
+            ?.getAttribute("data-editor-element") ?? null,
+        );
+      }}
+      onAuxClick={(event) => {
+        if (event.button === 1) event.preventDefault();
+      }}
+    >
+      <div
+        className="canvas-world"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        }}
+      >
+        {elements.map((element) => (
+          <div key={element.id} className="canvas-artboard">
+            <div
+              className="canvas-frame-label"
+              style={{ transform: `scale(${1 / zoom})` }}
+            >
+              <Monitor size={12} aria-hidden="true" />
+              <span>{element.name}</span>
+              <span>
+                {element.styles.width} × {element.styles.height}
+              </span>
+            </div>
+            <CanvasElement element={element} />
+          </div>
+        ))}
+      </div>
+      <div className="canvas-breadcrumb" data-canvas-ui>
+        <Home size={12} strokeWidth={1.5} aria-hidden="true" />
+        <span>Home</span>
+        <ChevronRight size={12} aria-hidden="true" />
+        <span>Canvas</span>
+      </div>
+      <p className="canvas-tool-status" role="status" data-canvas-ui>
+        <span className="status-dot" />
+        {isPanning ? "Panning" : `${activeToolLabel} selected`}
+      </p>
+      <p id="canvas-navigation-help" className="canvas-pan-hint" data-canvas-ui>
+        <kbd>Space</kbd> + drag to pan <span>· Ctrl / ⌘ + scroll to zoom</span>
+      </p>
+      <div
+        className="canvas-controls"
+        role="group"
+        aria-label="Canvas zoom"
+        data-canvas-ui
+      >
+        <span
+          className="canvas-hand-hint"
+          title="Hold Space and drag, or drag with the middle mouse button"
+          aria-hidden="true"
+        >
+          <Hand size={14} />
+        </span>
+        <span className="control-divider" aria-hidden="true" />
+        <IconButton
+          icon={Minus}
+          label="Zoom out"
+          disabled={zoom <= MIN_ZOOM}
+          onClick={() => zoomFromCenter(zoom - 0.25)}
+        />
+        <button
+          type="button"
+          className="zoom-value"
+          onClick={() => zoomFromCenter(1)}
+          title="Reset zoom to 100%"
+          aria-label={`Canvas zoom ${Math.round(zoom * 100)}%, reset to 100%`}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <IconButton
+          icon={Plus}
+          label="Zoom in"
+          disabled={zoom >= MAX_ZOOM}
+          onClick={() => zoomFromCenter(zoom + 0.25)}
+        />
+        <span className="control-divider" aria-hidden="true" />
+        <IconButton
+          icon={Maximize}
+          label="Reset canvas view"
+          onClick={fitToView}
+        />
+      </div>
+    </section>
+  );
+}

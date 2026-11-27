@@ -5,30 +5,22 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
-  ChevronRight,
   Code2,
-  Frame,
-  Hand,
-  Home,
-  Maximize,
-  Minus,
-  Monitor,
-  MousePointer2,
   PanelLeft,
   PanelRight,
   Play,
-  Plus,
 } from "lucide-react";
-import { useEditorStore } from "@/store/editor-store";
-import { IconButton, tools } from "./editor-controls";
+import { Canvas } from "./canvas";
+import { useEditorStore } from "@/store/useEditorStore";
+import { IconButton, tools, upcomingTools } from "./editor-controls";
 import { EditorDialog, type EditorDialogKind } from "./editor-dialog";
 import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
 
 export function EditorShell() {
-  const { tool, zoom, setTool, setZoom } = useEditorStore();
+  const activeTool = useEditorStore((state) => state.activeTool);
+  const setActiveTool = useEditorStore((state) => state.setActiveTool);
   const [dialog, setDialog] = useState<EditorDialogKind | null>(null);
-  const activeTool = tools.find((item) => item.id === tool)!;
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
@@ -52,12 +44,12 @@ export function EditorShell() {
       );
       if (selected) {
         event.preventDefault();
-        setTool(selected.id);
+        setActiveTool(selected.id);
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [dialog, setTool]);
+  }, [dialog, setActiveTool]);
 
   return (
     <main className="editor-shell">
@@ -105,9 +97,9 @@ export function EditorShell() {
               type="button"
               aria-label={`${label} (${shortcut})`}
               aria-keyshortcuts={shortcut.toLowerCase()}
-              aria-pressed={tool === id}
+              aria-pressed={activeTool === id}
               title={`${label} (${shortcut})`}
-              onClick={() => setTool(id)}
+              onClick={() => setActiveTool(id)}
               className="tool-button"
             >
               <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
@@ -118,6 +110,18 @@ export function EditorShell() {
                   aria-hidden="true"
                 />
               )}
+            </button>
+          ))}
+          {upcomingTools.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className="tool-button"
+              disabled
+              aria-label={`${label} (coming soon)`}
+              title={`${label} — coming soon`}
+            >
+              <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
             </button>
           ))}
         </nav>
@@ -157,91 +161,7 @@ export function EditorShell() {
           <NavigationPanel onHelp={() => setDialog("help")} />
         </aside>
 
-        <section
-          aria-label="Design canvas"
-          className={`canvas canvas-tool-${tool}`}
-          style={{
-            backgroundSize: `${(20 * zoom) / 100}px ${(20 * zoom) / 100}px`,
-          }}
-        >
-          <div className="canvas-breadcrumb">
-            <Home size={12} strokeWidth={1.5} aria-hidden="true" />
-            <span>Home</span>
-            <ChevronRight size={12} aria-hidden="true" />
-            <span>Canvas</span>
-          </div>
-          <div className="canvas-device">
-            <Monitor size={12} strokeWidth={1.5} aria-hidden="true" />
-            <span>Desktop</span>
-          </div>
-          <div className="canvas-empty">
-            <div className="canvas-emblem" aria-hidden="true">
-              <Frame size={30} strokeWidth={1} />
-              <span className="emblem-spark">
-                <Plus size={13} />
-              </span>
-            </div>
-            <h1>Big ideas start with a blank canvas.</h1>
-            <p>
-              A space to design, build, and make it yours.
-              <br />
-              Your next great website starts here.
-            </p>
-            <div className="canvas-shortcuts" aria-label="Tool shortcuts">
-              <Frame size={12} aria-hidden="true" />
-              <span>Frame tool</span>
-              <kbd>F</kbd>
-              <span className="shortcut-divider" aria-hidden="true" />
-              <MousePointer2 size={11} aria-hidden="true" />
-              <span>Select</span>
-              <kbd>V</kbd>
-            </div>
-          </div>
-          <p className="canvas-tool-status" role="status">
-            <span className="status-dot" />
-            {activeTool.label} selected
-          </p>
-          <div
-            className="canvas-controls"
-            role="group"
-            aria-label="Canvas zoom"
-          >
-            <IconButton
-              icon={Hand}
-              label="Hand tool (panning is not available yet)"
-              disabled
-            />
-            <span className="control-divider" aria-hidden="true" />
-            <IconButton
-              icon={Minus}
-              label="Zoom out"
-              disabled={zoom <= 25}
-              onClick={() => setZoom(zoom - 25)}
-            />
-            <button
-              type="button"
-              className="zoom-value"
-              onClick={() => setZoom(100)}
-              title="Reset grid zoom to 100%"
-              aria-label={`Grid zoom ${zoom}%, reset to 100%`}
-            >
-              {zoom}%
-            </button>
-            <IconButton
-              icon={Plus}
-              label="Zoom in"
-              disabled={zoom >= 200}
-              onClick={() => setZoom(zoom + 25)}
-            />
-            <span className="control-divider" aria-hidden="true" />
-            <IconButton
-              icon={Maximize}
-              label="Reset canvas view"
-              onClick={() => setZoom(100)}
-            />
-          </div>
-          <span className="canvas-signature">MADE TO MAKE.</span>
-        </section>
+        <Canvas suspended={dialog !== null} />
 
         <aside className="inspector-sidebar" aria-label="Inspector">
           <InspectorPanel />

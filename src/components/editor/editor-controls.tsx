@@ -7,7 +7,7 @@ import {
   Type,
   type LucideIcon,
 } from "lucide-react";
-import type { EditorTool } from "@/store/editor-store";
+import type { EditorTool } from "@/store/useEditorStore";
 
 export const tools: {
   id: EditorTool;
@@ -18,8 +18,11 @@ export const tools: {
   { id: "select", label: "Select", shortcut: "V", icon: MousePointer2 },
   { id: "frame", label: "Frame", shortcut: "F", icon: Frame },
   { id: "text", label: "Text", shortcut: "T", icon: Type },
-  { id: "stack", label: "Stack", shortcut: "S", icon: Layers },
-  { id: "component", label: "Component", shortcut: "C", icon: Component },
+];
+
+export const upcomingTools = [
+  { id: "stack", label: "Stack", icon: Layers },
+  { id: "component", label: "Component", icon: Component },
 ];
 
 export function IconButton({

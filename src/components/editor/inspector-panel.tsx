@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { findElementById, useEditorStore } from "@/store/useEditorStore";
 import {
   ArrowDown,
   ArrowLeft,
@@ -55,6 +56,11 @@ function InspectorSection({
 }
 
 export function InspectorPanel() {
+  const selected = useEditorStore((state) =>
+    state.selectedElementId
+      ? findElementById(state.elements, state.selectedElementId)
+      : undefined,
+  );
   return (
     <div className="inspector-panel">
       <div className="panel-heading">
@@ -67,8 +73,12 @@ export function InspectorPanel() {
             <MousePointer2 size={13} aria-hidden="true" />
           </span>
           <div>
-            <p>Nothing selected</p>
-            <p className="muted">Select an element to edit its properties</p>
+            <p>{selected?.name ?? "Nothing selected"}</p>
+            <p className="muted">
+              {selected
+                ? "Property editing comes in the next step"
+                : "Select an element to edit its properties"}
+            </p>
           </div>
         </div>
         <InspectorSection title="Position">

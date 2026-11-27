@@ -1,14 +1,44 @@
 import { useId } from "react";
-import { CircleHelp, Home, Layers, LayoutTemplate } from "lucide-react";
-import { useEditorStore, type SidebarTab } from "@/store/editor-store";
+import { CircleHelp, Frame, Home, Layers, LayoutTemplate } from "lucide-react";
+import {
+  useEditorStore,
+  type EditorElement,
+  type SidebarTab,
+} from "@/store/useEditorStore";
 import { IconButton } from "./editor-controls";
 
 const tabs: SidebarTab[] = ["pages", "layers", "assets"];
+
+function ElementLayers({ elements }: { elements: EditorElement[] }) {
+  const selectedElementId = useEditorStore((state) => state.selectedElementId);
+  const select = useEditorStore((state) => state.setSelectedElementId);
+  return (
+    <ul className="element-layers">
+      {elements.map((element) => (
+        <li key={element.id}>
+          <button
+            type="button"
+            className="layer-row"
+            aria-pressed={selectedElementId === element.id}
+            onClick={() => select(element.id)}
+          >
+            <Frame size={13} aria-hidden="true" />
+            {element.name}
+          </button>
+          {element.children.length > 0 && (
+            <ElementLayers elements={element.children} />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function NavigationPanel({ onHelp }: { onHelp: () => void }) {
   const tab = useEditorStore((state) => state.tab);
   const setTab = useEditorStore((state) => state.setTab);
   const id = useId();
+  const elements = useEditorStore((state) => state.elements);
 
   return (
     <div className="navigation-panel">
@@ -60,7 +90,13 @@ export function NavigationPanel({ onHelp }: { onHelp: () => void }) {
                   ? "Page layers"
                   : "Your library"}
             </span>
-            <span>{item === "pages" ? "1" : "0"}</span>
+            <span>
+              {item === "pages"
+                ? "1"
+                : item === "layers"
+                  ? elements.length
+                  : "0"}
+            </span>
           </div>
           {item === "pages" ? (
             <>
@@ -74,6 +110,8 @@ export function NavigationPanel({ onHelp }: { onHelp: () => void }) {
                 <br />A little blank space. A lot of possibility.
               </p>
             </>
+          ) : item === "layers" && elements.length > 0 ? (
+            <ElementLayers elements={elements} />
           ) : (
             <div className="empty-panel">
               {item === "layers" ? (

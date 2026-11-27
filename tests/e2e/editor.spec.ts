@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator(".canvas-world")).not.toHaveCSS(
+    "transform",
+    "matrix(1, 0, 0, 1, 0, 0)",
+  );
   await expect(
     page.getByRole("button", { name: "Select (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -25,13 +29,13 @@ test("desktop keeps the specified panel dimensions and theme", async ({
     "background-color",
     "rgb(10, 10, 10)",
   );
-  await expect(
-    page.getByRole("heading", { name: "Big ideas start with a blank canvas." }),
-  ).toBeVisible();
+  const desktop = page.locator('[data-editor-element="desktop"]');
+  await expect(desktop).toHaveCSS("width", "1200px");
+  await expect(desktop).toHaveCSS("height", "800px");
+  await expect(desktop).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(
     page.getByRole("button", { name: "About ZamnCraft" }),
   ).toBeVisible();
-  await expect(page.locator(".canvas-emblem")).toBeVisible();
   await expect(page.locator(".page-row")).toHaveCSS(
     "background-color",
     "rgb(20, 36, 50)",
@@ -40,7 +44,6 @@ test("desktop keeps the specified panel dimensions and theme", async ({
     "color",
     "rgb(255, 255, 255)",
   );
-  await expect(page.locator(".canvas-signature")).toHaveText("MADE TO MAKE.");
 });
 
 test("tool shortcuts ignore composition, handled events, modifiers, and text fields", async ({
@@ -105,7 +108,7 @@ test("tabs support arrow wrapping, Home, End, and valid ARIA panel references", 
   await page.keyboard.press("ArrowRight");
   await expect(layers).toBeFocused();
   await expect(page.getByRole("tabpanel", { name: "layers" })).toContainText(
-    "No layers",
+    "Desktop",
   );
   await page.keyboard.press("End");
   await expect(assets).toBeFocused();
@@ -149,7 +152,7 @@ test("dialogs keep the page inert, suspend shortcuts, close with Escape, and res
   await page.getByRole("button", { name: "Preview site" }).click();
   await expect(
     page.getByRole("dialog", { name: "Site preview" }),
-  ).toContainText("Your canvas is still empty.");
+  ).toContainText("Your Desktop frame is ready.");
   await page.getByRole("button", { name: "Back to editor" }).click();
   await expect(
     page.getByRole("button", { name: "Preview site" }),
@@ -161,21 +164,27 @@ test("zoom stops at its limits and resets without changing tools", async ({
 }) => {
   const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
   const zoomOut = page.getByRole("button", { name: "Zoom out", exact: true });
-  for (let i = 0; i < 4; i++) await zoomIn.click();
+  for (let i = 0; i < 8 && !(await zoomIn.isDisabled()); i++)
+    await zoomIn.click();
   await expect(zoomIn).toBeDisabled();
   await expect(
     page.getByRole("button", {
-      name: "Grid zoom 200%, reset to 100%",
+      name: "Canvas zoom 200%, reset to 100%",
       exact: true,
     }),
   ).toBeVisible();
   for (let i = 0; i < 7; i++) await zoomOut.click();
   await expect(zoomOut).toBeDisabled();
   await expect(page.locator(".canvas")).toHaveCSS("background-size", "5px 5px");
-  await page.getByRole("button", { name: "Reset canvas view" }).click();
+  await page
+    .getByRole("button", {
+      name: "Canvas zoom 25%, reset to 100%",
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByRole("button", {
-      name: "Grid zoom 100%, reset to 100%",
+      name: "Canvas zoom 100%, reset to 100%",
       exact: true,
     }),
   ).toBeVisible();
@@ -206,7 +215,7 @@ test("mobile retains navigation and inspector access without overflow or duplica
   await navigation.getByRole("tab", { name: "layers", exact: true }).click();
   await expect(
     navigation.getByRole("tabpanel", { name: "layers" }),
-  ).toContainText("No layers");
+  ).toContainText("Desktop");
   expect(
     await page.evaluate(() => {
       const ids = [...document.querySelectorAll("[id]")].map((node) => node.id);
