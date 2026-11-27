@@ -20,6 +20,9 @@ import {
 import { IconButton, tools } from "./editor-controls";
 import { PagesPanel, AssetsPanel } from "./sidebar-library";
 
+import { canReparentElements } from "@/store/editor-store";
+
+let draggedLayerIds: string[] | null = null;
 const tabs: SidebarTab[] = ["pages", "layers", "assets"];
 
 function countElements(elements: EditorElement[]): number {
@@ -75,6 +78,65 @@ function LayerItem({
         data-layer-id={element.id}
         data-selected={selected}
         data-component={linked}
+        draggable={!renaming && !linked && !element.breakpoint}
+        onDragStart={(event) => {
+          if (
+            renaming ||
+            linked ||
+            element.breakpoint ||
+            (event.target instanceof Element &&
+              event.target.closest(".layer-delete, .layer-disclosure, input"))
+          ) {
+            event.preventDefault();
+            return;
+          }
+          const state = useEditorStore.getState();
+          if (!selected) state.setSelectedElementId(element.id);
+          draggedLayerIds = [...useEditorStore.getState().selectedElementIds];
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData(
+            "application/x-zamncraft-layers",
+            JSON.stringify(draggedLayerIds),
+          );
+        }}
+        onDragOver={(event) => {
+          if (
+            !draggedLayerIds ||
+            !canReparentElements(
+              useEditorStore.getState().elements,
+              draggedLayerIds,
+              element.id,
+            )
+          )
+            return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          event.currentTarget.dataset.dropTarget = "true";
+        }}
+        onDragLeave={(event) => {
+          if (
+            !(event.relatedTarget instanceof Node) ||
+            !event.currentTarget.contains(event.relatedTarget)
+          )
+            delete event.currentTarget.dataset.dropTarget;
+        }}
+        onDragEnd={() => {
+          draggedLayerIds = null;
+          document
+            .querySelectorAll("[data-drop-target]")
+            .forEach((row) => row.removeAttribute("data-drop-target"));
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          delete event.currentTarget.dataset.dropTarget;
+          const ids = draggedLayerIds;
+          draggedLayerIds = null;
+          if (
+            ids &&
+            useEditorStore.getState().reparentElements(ids, element.id)
+          )
+            setExpanded(true);
+        }}
         style={{ paddingLeft: 4 + depth * 16 }}
         onMouseDown={(event) => {
           if (event.target instanceof HTMLInputElement) return;
@@ -154,7 +216,7 @@ function LayerItem({
           hidden={renaming}
           aria-pressed={selected}
           aria-keyshortcuts="F2"
-          title={`${element.name} — Shift+click for a range; Ctrl/⌘+click to toggle; double-click or F2 to rename`}
+          title={`${element.name} — drag onto a frame to move inside; Shift+click for a range; Ctrl/⌘+click to toggle; double-click or F2 to rename`}
           onDoubleClick={startRename}
           onKeyDown={(event) => {
             if (event.key === "F2") {

@@ -75,6 +75,7 @@ export function Canvas({
     viewportRef,
     suspended || preview,
     suppressClick,
+    spaceRef,
   );
   const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -192,7 +193,6 @@ export function Canvas({
       )
         return;
       event.preventDefault();
-      manipulation.finish(true);
       drawing.cancel();
       selection.finish(true);
       spaceRef.current = true;
@@ -232,7 +232,8 @@ export function Canvas({
       if (
         suspended ||
         dragRef.current ||
-        manipulation.gesture.current ||
+        (manipulation.gesture.current &&
+          (zooming || !!manipulation.gesture.current.handle)) ||
         drawing.ref.current ||
         selection.ref.current
       )
@@ -250,6 +251,7 @@ export function Canvas({
           event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX;
         const dy = event.shiftKey && event.deltaX === 0 ? 0 : event.deltaY;
         setPan({ x: pan.x - dx * unit, y: pan.y - dy * unit });
+        manipulation.refresh();
         return;
       }
       const delta = Math.max(-1000, Math.min(1000, event.deltaY * unit));
@@ -407,11 +409,14 @@ export function Canvas({
         backgroundColor: canvasBackground,
         backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
         backgroundPosition: `${pan.x}px ${pan.y}px`,
-        cursor: manipulation.active
-          ? manipulation.gesture.current?.handle
-            ? `${manipulation.gesture.current.handle}-resize`
-            : "move"
-          : undefined,
+        cursor:
+          spacePressed && manipulation.gesture.current
+            ? "grabbing"
+            : manipulation.active
+              ? manipulation.gesture.current?.handle
+                ? `${manipulation.gesture.current.handle}-resize`
+                : "move"
+              : undefined,
       }}
       onPointerDownCapture={() => {
         if (!preview)

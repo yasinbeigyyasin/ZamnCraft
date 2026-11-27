@@ -73,6 +73,31 @@ export function findElementById(
   }
 }
 
+// Component boundaries and breakpoint roots are not ordinary movable children.
+export function canReparentElements(
+  elements: EditorElement[],
+  ids: string[],
+  parentId: string,
+): boolean {
+  const parent = findElementById(elements, parentId);
+  if (
+    !ids.length ||
+    ids.some((id) => !findElementById(elements, id)) ||
+    !parent ||
+    parent.type !== "frame" ||
+    componentOwner(elements, parentId)
+  )
+    return false;
+  return selectedRoots(elements, ids).every(
+    (node) =>
+      !node.breakpoint &&
+      !componentOwner(elements, node.id) &&
+      node.id !== parentId &&
+      !findElementById(node.children, parentId) &&
+      !parent.children.some((child) => child.id === node.id),
+  );
+}
+
 function updateElement(
   elements: EditorElement[],
   id: string,
@@ -141,6 +166,7 @@ export interface EditorState {
   toggleSelection: (id: string) => void;
   selectRange: (id: string, order: string[], additive?: boolean) => void;
   deleteSelectedElements: () => void;
+  reparentElements: (ids: string[], parentId: string) => boolean;
   moveElements: (
     positions: { id: string; left: number; top: number }[],
   ) => void;
@@ -1167,6 +1193,46 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
           selectionAnchorId: null,
         };
       }),
+    reparentElements: (ids, parentId) => {
+      let moved = false;
+      set((state) => {
+        if (
+          state.isPreviewMode ||
+          !canReparentElements(state.elements, ids, parentId)
+        )
+          return state;
+        const parent = findElementById(state.elements, parentId)!;
+        const flow = getLayoutMode(parent.styles) !== "free";
+        const roots = selectedRoots(state.elements, ids);
+        const children = roots.map((node) => {
+          const { position, left, top } = node.freePosition ?? node.styles;
+          return {
+            ...node,
+            freePosition: flow ? { position, left, top } : undefined,
+            styles: {
+              ...node.styles,
+              position: flow ? ("relative" as const) : ("absolute" as const),
+              left: flow ? 0 : (left ?? 0),
+              top: flow ? 0 : (top ?? 0),
+            },
+          };
+        });
+        const remaining = roots.reduce(
+          (nodes, node) => removeElement(nodes, node.id),
+          state.elements,
+        );
+        moved = true;
+        return {
+          elements: updateElement(remaining, parentId, (parent) => ({
+            ...parent,
+            children: [...parent.children, ...children],
+          })),
+          selectedElementIds: [...ids],
+          selectedElementId: ids.at(-1) ?? null,
+        };
+      });
+      return moved;
+    },
     moveElements: (positions) =>
       set((state) => {
         if (

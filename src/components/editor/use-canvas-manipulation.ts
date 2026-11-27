@@ -33,6 +33,8 @@ type Gesture = {
   node: HTMLElement;
   start: { x: number; y: number };
   zoom: number;
+  pan: { x: number; y: number };
+  last: { x: number; y: number; altKey: boolean };
   rect: CanvasRect;
   styles: CSSProperties;
   origin: { left: number; top: number };
@@ -46,6 +48,7 @@ export function useCanvasManipulation(
   viewportRef: RefObject<HTMLElement | null>,
   suspended: boolean,
   suppressClick: () => void,
+  spaceRef: RefObject<boolean>,
 ) {
   const gesture = useRef<Gesture | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
@@ -208,6 +211,8 @@ export function useCanvasManipulation(
       pointerId: event.pointerId,
       start: { x: event.clientX, y: event.clientY },
       zoom,
+      pan: { ...pan },
+      last: { x: event.clientX, y: event.clientY, altKey: event.altKey },
       rect: worldRect(node),
       styles: { ...element.styles },
       origin: {
@@ -237,20 +242,46 @@ export function useCanvasManipulation(
     }
   }
 
-  function move(event: PointerEvent<HTMLElement>) {
+  function move(
+    event: Pick<
+      PointerEvent<HTMLElement>,
+      | "pointerId"
+      | "clientX"
+      | "clientY"
+      | "buttons"
+      | "altKey"
+      | "preventDefault"
+    >,
+  ) {
     const current = gesture.current;
     if (!current || event.pointerId !== current.pointerId) return;
     if (!event.buttons) {
       finish();
       return;
     }
-    if (
-      !current.moved &&
-      Math.hypot(
-        event.clientX - current.start.x,
-        event.clientY - current.start.y,
-      ) < 3
-    )
+    const previous = current.last;
+    current.last = { x: event.clientX, y: event.clientY, altKey: event.altKey };
+    if (spaceRef.current) {
+      const state = useEditorStore.getState();
+      state.setPan({
+        x: state.canvasConfig.pan.x + event.clientX - previous.x,
+        y: state.canvasConfig.pan.y + event.clientY - previous.y,
+      });
+      suppressClick();
+      event.preventDefault();
+      setGuides([]);
+      return;
+    }
+    const pan = useEditorStore.getState().canvasConfig.pan;
+    const delta = {
+      x:
+        (event.clientX - current.start.x - (pan.x - current.pan.x)) /
+        current.zoom,
+      y:
+        (event.clientY - current.start.y - (pan.y - current.pan.y)) /
+        current.zoom,
+    };
+    if (!current.moved && Math.hypot(delta.x, delta.y) * current.zoom < 3)
       return;
     current.moved = true;
     suppressClick();
@@ -261,8 +292,7 @@ export function useCanvasManipulation(
       !current.handle &&
       (current.members.length > 1 || current.members[0]?.id !== current.id)
     ) {
-      const x = (event.clientX - current.start.x) / current.zoom,
-        y = (event.clientY - current.start.y) / current.zoom;
+      const { x, y } = delta;
       useEditorStore.getState().moveElements(
         current.members.map((member) => ({
           id: member.id,
@@ -274,14 +304,7 @@ export function useCanvasManipulation(
       return;
     }
     if (current.mode === "scale" && current.handle) {
-      const { rect, factor } = scaleRect(
-        current.rect,
-        {
-          x: (event.clientX - current.start.x) / current.zoom,
-          y: (event.clientY - current.start.y) / current.zoom,
-        },
-        current.handle,
-      );
+      const { rect, factor } = scaleRect(current.rect, delta, current.handle);
       useEditorStore.getState().scaleElement(current.source, factor, {
         width: rect.width,
         height: rect.height,
@@ -296,10 +319,7 @@ export function useCanvasManipulation(
     }
     const { rect, guides } = manipulateRect(
       current.rect,
-      {
-        x: (event.clientX - current.start.x) / current.zoom,
-        y: (event.clientY - current.start.y) / current.zoom,
-      },
+      delta,
       current.handle,
       event.altKey ? [] : current.targets,
       6 / current.zoom,
@@ -328,5 +348,17 @@ export function useCanvasManipulation(
     setGuides(guides);
   }
 
-  return { gesture, active, guides, start, move, finish };
+  function refresh() {
+    const current = gesture.current;
+    if (current)
+      move({
+        pointerId: current.pointerId,
+        clientX: current.last.x,
+        clientY: current.last.y,
+        buttons: 1,
+        altKey: current.last.altKey,
+        preventDefault() {},
+      });
+  }
+  return { gesture, active, guides, start, move, finish, refresh };
 }

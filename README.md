@@ -237,3 +237,15 @@ Paths currently edit as whole layers, not individual nodes after completion. Pol
 - Drag a selected layer to move the selection together. A selected descendant follows its selected parent rather than moving twice. **Delete/Backspace** deletes the selected subtrees in one step; **undo/redo** restores the complete group and selection. Escape cancels the entire active move.
 
 Selection is shared between Layers and canvas outlines, but is not persisted as document content. Preview does not permit selection edits. The Inspector shows the selection count instead of silently editing only one selected layer; choose one layer for property editing, resizing, scaling, or creating a component. Multi-layer movement does not currently snap as a group.
+
+## Moving layers between frames and roaming during a drag
+
+In **Layers**, drag a layer row onto a different frame row. A blue outline marks a valid destination, which expands after dropping. The layer (including its subtree) moves into that frame with its IDs, content and effects intact. Selected layers can be moved together; selected descendants follow their selected ancestor. Free-layout offsets stay relative to the new frame; Stack/Grid destinations arrange the dropped layers in their layout flow. Undo/redo treats a drop as one action, and the new hierarchy is saved normally.
+
+Dropping into yourself or a descendant, moving breakpoint artboards, or crossing linked-component boundaries is prevented. Detach linked components before moving their internal layers. This gesture changes the parent; it does not reorder siblings or move content between pages.
+
+While **holding an item with the left mouse button on the canvas**:
+
+- **Scroll/trackpad** pans the canvas while keeping the held layer at the pointer (Shift + scroll pans horizontally).
+- **Hold Space and move the pointer** to temporarily pan without changing the layer's local position. Release Space, keeping the left button held, to resume moving it without a jump.
+- Release the left button to finish the move, or press **Escape** to cancel it. The move remains one undoable action even after panning. Zooming during a held drag stays disabled.

@@ -2593,3 +2593,10 @@ textarea.text-control {
 .multi-selection-summary p { font-size: 11px; line-height: 1.6; margin-bottom: 12px; }
 .multi-selection-summary button { padding: 7px 12px; background: #292929; border: 1px solid #383838; border-radius: 6px; color: #ddd; }
 .multi-selection-summary button:hover { background: #353535; }
+
+.layer-row[data-drop-target="true"] {
+  outline: 1px solid #0099ff;
+  outline-offset: -1px;
+  background: #0099ff26;
+}
+.layer-row[draggable="true"] .layer-name { cursor: grab; }
