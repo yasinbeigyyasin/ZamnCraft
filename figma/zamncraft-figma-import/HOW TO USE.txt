@@ -1,0 +1,57 @@
+HOW TO USE (Figma desktop on Windows or macOS)
+
+1. Extract the entire ZIP. Keep manifest.json, code.js and this file together
+   in the zamncraft-figma-import folder. Do not import from inside the ZIP.
+
+2. Open the Figma desktop app and create a new, empty Figma Design file.
+   You can instead open your existing target Design file if its plan permits
+   two additional pages. Existing pages and content are not intentionally changed.
+   The importer creates two new pages; account page limits may apply.
+
+3. Open Figma's menu > Plugins > Development > Import plugin from manifest...
+
+4. Select manifest.json from the extracted zamncraft-figma-import folder.
+
+5. Run Plugins > Development > ZamnCraft editable screen importer.
+
+6. Wait for the creation notification, then open the two new pages in Figma:
+
+   ZamnCraft · 01 Screens
+   - Desktop Pages, Layers with selection, and Assets views (1440 x 900).
+   - Responsive breakpoints, Export Code Modal, Local Workspace confirmation,
+     Editor Help, and desktop Preview.
+   - Mobile editor, navigation, Inspector, and code export references.
+
+   ZamnCraft · 02 UI Parts
+   - Separate toolbar and Pages / Layers / Assets panels.
+   - Full-height, expanded Inspector, plus each section separately.
+   - Position, Size, Layout, Styles, Typography, Effects & Animations.
+   - Buttons, fields, toggles, slider, vector icons, colors, typography,
+     and isolated Export Code and Local Workspace dialogs.
+
+The named frames, native text, shapes, vector icons, and colors can be edited.
+Most icons are separate SVG-derived vectors; the brand initial is a text reference.
+This is a fixed-layout reconstruction of the existing ZamnCraft editor, with sample
+content and representative states. It is not a screenshot, a live project import,
+a working editor/prototype, or a complete Auto Layout/component-variant system.
+Inspector views inside screen frames are intentionally clipped like scroll areas;
+the entire expanded Inspector is available on the UI Parts page.
+
+Run it once in an empty file. Running it again creates duplicate pages and frames.
+The plugin operates locally on the open file and does not access the network.
+It loads an available Regular/Bold font (prefers Inter, then Roboto, then Arial).
+It does not need an API token, a login screen, npm, or a separate server.
+
+You can select and delete its two generated pages if you no longer need them.
+Do not delete your original page(s). If creation fails, the importer attempts to
+remove only the pages from that run and restores your original active page.
+If cleanup cannot complete, its error message warns that partial pages may remain.
+
+If Figma shows an error, send its exact text. If the manifest cannot be imported,
+check that the ZIP was fully extracted and you selected manifest.json, not code.js.
+If page limits prevent creation, use an empty file/plan that allows two more pages,
+or make room before running again. If fonts fail, enable Inter or Roboto and retry.
+
+The importer was syntax checked and exercised against a mock Figma API,
+but it has not been run in the real Figma app. Exact font rendering, glyph fallback,
+and Figma-version compatibility still need confirmation in Figma Desktop.
