@@ -1,4 +1,5 @@
 "use client";
+import { isVectorTool, vectorPresentation } from "@/lib/vector";
 
 import {
   memo,
@@ -120,6 +121,10 @@ const ElementNode = memo(function ElementNodeView({
       return;
     }
     const state = useEditorStore.getState();
+    if (isVectorTool(state.activeTool)) {
+      event.stopPropagation();
+      return;
+    }
     if (state.activeTool === "hand") {
       event.stopPropagation();
       return;
@@ -159,6 +164,7 @@ const ElementNode = memo(function ElementNodeView({
       }}
       data-editor-element={element.id}
       data-element-type={element.type}
+      data-shape-kind={element.vector?.kind}
       data-selected={selected}
       data-component={linked}
       data-component-role={element.componentRole}
@@ -166,6 +172,7 @@ const ElementNode = memo(function ElementNodeView({
       className="canvas-element"
       style={{
         ...element.styles,
+        ...vectorPresentation(element),
         ...motion.visualStyles,
         position: element.styles.position || "relative",
         ...(root ? { position: "relative", left: 0, top: 0 } : {}),

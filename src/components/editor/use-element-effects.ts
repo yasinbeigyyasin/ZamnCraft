@@ -11,6 +11,7 @@ import {
   type PointerEvent,
   type KeyboardEvent,
 } from "react";
+import { vectorPresentation } from "@/lib/vector";
 import { DEFAULT_EFFECTS, springTransition } from "@/lib/element-effects";
 import type { EditorElement } from "@/types/editor";
 import { useEditorStore } from "@/store/editor-store";
@@ -75,6 +76,19 @@ export function useElementEffects(
           String(element.styles.backgroundColor ?? "transparent"))
         : String(element.styles.backgroundColor ?? "transparent"),
     };
+    if (element.vector)
+      Object.assign(target, {
+        backgroundColor: "transparent",
+        backgroundImage: vectorPresentation({
+          ...element,
+          styles: {
+            ...element.styles,
+            backgroundColor: hovering
+              ? (effects.hover.fill ?? element.styles.backgroundColor)
+              : element.styles.backgroundColor,
+          },
+        }).backgroundImage,
+      });
     const computed = getComputedStyle(node);
     const from =
       (entering || replaying) && effects.appear.enabled && !reduced
@@ -90,6 +104,11 @@ export function useElementEffects(
             opacity: computed.opacity,
             backgroundColor: computed.backgroundColor,
           };
+    if (element.vector)
+      Object.assign(from, {
+        backgroundColor: "transparent",
+        backgroundImage: computed.backgroundImage,
+      });
     animation.current?.cancel();
     const transition =
       effects.transition.type === "spring"

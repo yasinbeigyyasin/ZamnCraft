@@ -1,3 +1,4 @@
+import { validVector } from "./vector";
 import type { CSSProperties } from "react";
 import type {
   CanvasConfig,
@@ -287,9 +288,12 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
       !string(value.id) ||
       ids.has(value.id) ||
       !string(value.name) ||
-      !["frame", "text", "button"].includes(String(value.type)) ||
+      !["frame", "text", "button", "shape"].includes(String(value.type)) ||
       !Array.isArray(value.children) ||
       !styles(value.styles) ||
+      (value.type === "shape"
+        ? !validVector(value.vector) || value.children.length !== 0
+        : value.vector !== undefined) ||
       (value.content !== undefined &&
         (typeof value.content !== "string" || value.content.length > 200000)) ||
       (value.breakpoint !== undefined &&
@@ -325,6 +329,9 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
       type: value.type as EditorElement["type"],
       children: value.children.map((child) => element(child, ids, depth + 1)),
       styles: value.styles,
+      ...(value.type === "shape"
+        ? { vector: value.vector as EditorElement["vector"] }
+        : {}),
       effects,
       animations: {},
       ...(value.content !== undefined

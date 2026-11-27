@@ -121,7 +121,7 @@ test("clipboard rejection gives useful feedback and framework keyboard tabs pres
     page.getByRole("button", { name: "Export Code", exact: true }),
   ).toBeFocused();
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
 });
 

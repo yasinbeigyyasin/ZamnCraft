@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
     "matrix(1, 0, 0, 1, 0, 0)",
   );
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -147,7 +147,7 @@ test("dialogs keep the page inert, suspend shortcuts, close with Escape, and res
   await expect(dialog).not.toBeVisible();
   await expect(exportButton).toBeFocused();
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Preview site" }).click();
   await expect(
@@ -190,7 +190,7 @@ test("zoom stops at its limits and resets without changing tools", async ({
   ).toBeVisible();
   await expect(zoomOut).toBeEnabled();
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
 });
 

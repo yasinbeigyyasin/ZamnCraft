@@ -9,14 +9,12 @@ import {
   Check,
   ChevronDown,
   Code2,
-  Component,
   PanelLeft,
   PanelRight,
   Play,
   Square,
 } from "lucide-react";
 import { startWorkspacePersistence } from "@/lib/workspace-persistence";
-import { canCreateComponent } from "@/lib/editor-components";
 import { Canvas } from "./canvas";
 import { useEditorStore } from "@/store/useEditorStore";
 import { IconButton, tools } from "./editor-controls";
@@ -34,16 +32,9 @@ export function EditorShell() {
   );
   const canRedo = useEditorStore((state) => state.historyFuture.length > 0);
   useEffect(() => startWorkspacePersistence(), []);
-  const activeTool = useEditorStore((state) => state.activeTool);
   const setActiveTool = useEditorStore((state) => state.setActiveTool);
   const preview = useEditorStore((state) => state.isPreviewMode);
   const setPreviewMode = useEditorStore((state) => state.setPreviewMode);
-  const canCreate = useEditorStore((state) =>
-    Boolean(
-      state.selectedElementId &&
-      canCreateComponent(state.elements, state.selectedElementId),
-    ),
-  );
   const [dialog, setDialog] = useState<EditorDialogKind | null>(null);
 
   useEffect(() => {
@@ -108,7 +99,9 @@ export function EditorShell() {
       }
 
       const selected = tools.find(
-        (item) => item.shortcut.toLowerCase() === event.key.toLowerCase(),
+        (item) =>
+          item.shortcut.toLowerCase() ===
+          `${event.shiftKey ? "shift+" : ""}${event.key.toLowerCase()}`,
       );
       if (selected) {
         event.preventDefault();
@@ -169,51 +162,6 @@ export function EditorShell() {
             aria-haspopup="dialog"
           />
         </div>
-        <nav className="tool-bar" aria-label="Editor tools" hidden={preview}>
-          {tools.map(({ id, label, shortcut, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              aria-label={`${label} (${shortcut})`}
-              aria-keyshortcuts={shortcut.toLowerCase()}
-              aria-pressed={activeTool === id}
-              title={`${label} (${shortcut})${id === "select" ? "" : id === "scale" ? " — drag a handle to scale selection and contents" : id === "hand" ? " — drag to pan" : " — click on the canvas or inside a frame to add"}`}
-              onClick={(event) => {
-                setActiveTool(id);
-                if (event.detail > 0)
-                  document
-                    .getElementById("editor-canvas")
-                    ?.focus({ preventScroll: true });
-              }}
-              className={`tool-button ${id === "frame" ? "tool-insert-start" : ""}`}
-            >
-              <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
-              <span className="tool-label">{label}</span>
-              {id === "frame" && (
-                <ChevronDown
-                  size={9}
-                  className="tool-chevron"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="tool-button component-tool"
-            aria-label="Component (C)"
-            aria-keyshortcuts="c"
-            disabled={!canCreate}
-            title="Create Component (C) — select an independent subtree"
-            onClick={() => {
-              const state = useEditorStore.getState();
-              if (state.selectedElementId)
-                state.createComponent(state.selectedElementId);
-            }}
-          >
-            <Component size={17} strokeWidth={1.7} aria-hidden="true" />
-          </button>
-        </nav>
         <div
           id="toolbar-breakpoints"
           className="toolbar-breakpoints"

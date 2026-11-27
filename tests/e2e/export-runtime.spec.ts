@@ -8,6 +8,7 @@ import {
   generateCode,
   type ExportFramework,
 } from "../../src/lib/code-generator";
+import { shapeGeometry } from "../../src/lib/vector";
 import { createDefaultEffects } from "../../src/lib/element-effects";
 import type { EditorElement } from "../../src/types/editor";
 
@@ -52,6 +53,30 @@ function design(): EditorElement[] {
       },
     ],
   };
+  master.children.push({
+    id: "star",
+    name: "Exported star",
+    type: "shape",
+    vector: shapeGeometry("star"),
+    effects: {
+      ...createDefaultEffects(),
+      hover: { enabled: true, scale: 1, rotate: 0, fill: "#ff5500" },
+      transition: { ...createDefaultEffects().transition, duration: 0.05 },
+    },
+    children: [],
+    animations: {},
+    styles: {
+      position: "absolute",
+      left: 100,
+      top: 60,
+      width: 60,
+      height: 60,
+      backgroundColor: "#0088ff",
+      borderWidth: 2,
+      borderStyle: "solid",
+      borderColor: "#111111",
+    },
+  });
   const instance = structuredClone(master);
   instance.id = "instance";
   instance.componentRole = "instance";
@@ -131,6 +156,13 @@ for (const framework of ["react", "vue", "svelte"]) {
     await page.addScriptTag({ content: output.js });
     const cards = page.getByLabel("Card", { exact: true });
     await expect(cards).toHaveCount(2);
+    const stars = page.getByLabel("Exported star", { exact: true });
+    await expect(stars).toHaveCount(2);
+    await expect(stars.first()).toHaveText("");
+    await expect(stars.first()).toHaveCSS(
+      "background-image",
+      /data:image\/svg\+xml/,
+    );
     await expect(
       page.getByLabel("Caption", { exact: true }).first(),
     ).toHaveText(literal);
@@ -166,6 +198,17 @@ for (const framework of ["react", "vue", "svelte"]) {
     await expect.poll(scale).toBeCloseTo(1.2, 2);
     await page.mouse.move(0, 0);
     await expect.poll(scale).toBeCloseTo(1, 2);
+    const beforeStar = await stars
+      .first()
+      .evaluate((node) => getComputedStyle(node).backgroundImage);
+    await stars.first().hover();
+    await expect(stars.first()).toHaveCSS("background-image", /%23ff5500/);
+    await expect(stars.first()).toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
+    await page.mouse.move(0, 0);
+    await expect(stars.first()).toHaveCSS("background-image", beforeStar);
     expect(errors).toEqual([]);
   });
 }

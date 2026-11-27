@@ -1,3 +1,5 @@
+import { validVector } from "@/lib/vector";
+import type { VectorGeometry } from "@/types/editor";
 import { create } from "zustand";
 import { scaleElementTree } from "@/lib/scale-element";
 import { BREAKPOINTS, createDesktop, createWorkspace } from "@/lib/workspace";
@@ -148,6 +150,11 @@ export interface EditorState {
     parentId: string | null,
     type: "frame" | "text" | "stack",
     position: Point,
+  ) => string | null;
+  addVector: (
+    parentId: string | null,
+    vector: VectorGeometry,
+    rect: { left: number; top: number; width: number; height: number },
   ) => string | null;
   scaleElement: (
     source: EditorElement,
@@ -844,6 +851,62 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
                 })),
           selectedElementId: element.id,
           activeTool: "select",
+        };
+      });
+      return createdId;
+    },
+    addVector: (parentId, vector, rect) => {
+      if (
+        get().isPreviewMode ||
+        !validVector(vector) ||
+        Object.values(rect).some(
+          (value) => !Number.isFinite(value) || Math.abs(value) > 1e7,
+        ) ||
+        rect.width <= 0 ||
+        rect.height <= 0
+      )
+        return null;
+      let createdId: string | null = null;
+      set((state) => {
+        const parent =
+          parentId === null ? null : findElementById(state.elements, parentId);
+        if (parentId !== null && parent?.type !== "frame") return state;
+        const flow = parent && getLayoutMode(parent.styles) !== "free";
+        const open = !vector.path.endsWith("Z");
+        const element: EditorElement = {
+          id: crypto.randomUUID(),
+          name:
+            vector.kind === "pen"
+              ? "Vector"
+              : vector.kind === "pencil"
+                ? "Pencil"
+                : vector.kind[0].toUpperCase() + vector.kind.slice(1),
+          type: "shape",
+          vector: { ...vector },
+          children: [],
+          animations: {},
+          effects: createDefaultEffects(),
+          styles: {
+            position: flow ? "relative" : "absolute",
+            ...rect,
+            ...(flow ? { left: 0, top: 0 } : {}),
+            backgroundColor: open ? "transparent" : "#d9d9d9",
+            borderWidth: open ? 2 : 0,
+            borderStyle: "solid",
+            borderColor: parentId === null ? "#ffffff" : "#111111",
+          },
+        };
+        createdId = element.id;
+        return {
+          elements:
+            parentId === null
+              ? [...state.elements, element]
+              : updateElement(state.elements, parentId, (item) => ({
+                  ...item,
+                  children: [...item.children, element],
+                })),
+          selectedElementId: element.id,
+          activeTool: vector.kind === "pencil" ? "pencil" : "select",
         };
       });
       return createdId;

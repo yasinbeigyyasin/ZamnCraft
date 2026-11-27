@@ -87,12 +87,14 @@ export function PopoverSelect({
   options,
   onChange,
   disabled = false,
+  placement = "bottom",
 }: {
   label: string;
   value: string;
   options: readonly ControlOption[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  placement?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -115,7 +117,7 @@ export function PopoverSelect({
       node.style.width = `${Math.max(Math.min(bounds.width, width), Math.min(232, width))}px`;
       node.style.maxHeight = `${Math.min(340, window.innerHeight - 24)}px`;
       node.style.left = `${Math.max(8, Math.min(bounds.left, window.innerWidth - node.offsetWidth - 8))}px`;
-      node.style.top = `${Math.max(8, Math.min(bounds.bottom + 6, window.innerHeight - node.offsetHeight - 8))}px`;
+      node.style.top = `${Math.max(8, Math.min(placement === "top" ? bounds.top - node.offsetHeight - 8 : bounds.bottom + 6, window.innerHeight - node.offsetHeight - 8))}px`;
     };
     position();
     const index = Math.max(
@@ -141,7 +143,7 @@ export function PopoverSelect({
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position, true);
     };
-  }, [open, value]);
+  }, [open, value, placement]);
   const close = () => {
     setOpen(false);
     trigger.current?.focus({ preventScroll: true });

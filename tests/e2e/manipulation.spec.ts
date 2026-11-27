@@ -324,7 +324,7 @@ test("cancel, capture loss, blur, tool changes and dialogs end gestures without 
         .evaluate((node) => (node as HTMLButtonElement).click());
     await page.mouse.up();
     if (reason === "dialog") await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Select (V)", exact: true }).click();
+    await page.getByRole("button", { name: "Move (V)", exact: true }).click();
     expect(await geometry(child)).toEqual(before);
     await expect(page.locator(".canvas-alignment-guide")).toHaveCount(0);
     await page.mouse.move(point.x + 90, point.y + 90);

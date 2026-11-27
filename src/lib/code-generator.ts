@@ -1,3 +1,4 @@
+import { vectorPresentation } from "./vector";
 import type { CSSProperties } from "react";
 import type { EditorElement, ElementEffects } from "@/types/editor";
 import { DEFAULT_EFFECTS, springTransition } from "./element-effects";
@@ -116,6 +117,7 @@ interface Node {
   effects: ElementEffects;
   styles: CSSProperties;
   reference?: string;
+  hoverFill?: CSSProperties;
 }
 interface Definition {
   name: string;
@@ -172,6 +174,7 @@ export function generateCode(
       ? { ...styles, position: undefined, left: undefined, top: undefined }
       : styles,
     effects: element.effects,
+    vector: element.vector,
     children: element.children.map((child) =>
       shape(child, child.styles, false),
     ),
@@ -185,6 +188,7 @@ export function generateCode(
     const effects = element.effects ?? DEFAULT_EFFECTS;
     const styles: CSSProperties = {
       ...element.styles,
+      ...vectorPresentation(element),
       position: element.styles.position || "relative",
       ...(root
         ? {
@@ -257,10 +261,24 @@ export function generateCode(
       className,
       name: element.name,
       text:
-        element.type === "frame"
+        element.type === "frame" || element.type === "shape"
           ? undefined
           : (element.content ?? element.name),
       children: element.children.map((child) => build(child, styles)),
+      ...(element.vector && effects.hover.fill
+        ? {
+            hoverFill: {
+              backgroundImage: vectorPresentation({
+                ...element,
+                styles: {
+                  ...element.styles,
+                  backgroundColor: effects.hover.fill,
+                },
+              }).backgroundImage,
+              backgroundColor: "transparent",
+            },
+          }
+        : {}),
       effects,
       styles,
     };
@@ -289,7 +307,7 @@ export function generateCode(
       );
     if (e.hover.enabled)
       css.push(
-        `@media (hover: hover) {\n  ${selector}:hover {\n    --zc-scale: ${e.hover.scale};\n    --zc-rotate: ${e.hover.rotate}deg;${e.hover.opacity !== undefined ? `\n    --zc-opacity: ${e.hover.opacity};` : ""}${e.hover.fill ? `\n    background-color: ${cssValue(e.hover.fill)};` : ""}\n  }\n}`,
+        `@media (hover: hover) {\n  ${selector}:hover {\n    --zc-scale: ${e.hover.scale};\n    --zc-rotate: ${e.hover.rotate}deg;${e.hover.opacity !== undefined ? `\n    --zc-opacity: ${e.hover.opacity};` : ""}${e.hover.fill ? `\n${node.hoverFill ? declarations(node.hoverFill) : `    background-color: ${cssValue(e.hover.fill)};`}` : ""}\n  }\n}`,
       );
     if (e.press.enabled)
       css.push(`${selector}:active { --zc-scale: ${e.press.scale}; }`);
@@ -362,7 +380,8 @@ export function generateCode(
     };
     const hover = {
       ...(e.hover.opacity !== undefined ? { opacity: e.hover.opacity } : {}),
-      ...(e.hover.fill ? { backgroundColor: e.hover.fill } : {}),
+      ...(node.hoverFill ??
+        (e.hover.fill ? { backgroundColor: e.hover.fill } : {})),
     };
     const attributes = [
       `className=${extra ? `{${json(`${node.className} ${utilities(node)} `)} + className}` : json(`${node.className} ${utilities(node)}`)}`,

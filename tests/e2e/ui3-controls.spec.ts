@@ -190,7 +190,7 @@ test("Stack shortcut inserts a frame; Hand pans without moving elements; rename 
   await expect(stack).toHaveCSS("display", "flex");
   await expect(stack).toHaveCSS("flex-direction", "column");
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   const name = panel(page).getByRole("textbox", {
     name: "Layer name",

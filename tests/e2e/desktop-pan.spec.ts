@@ -1,3 +1,4 @@
+import { choose } from "./control-helpers";
 import { expect, test, type Page } from "@playwright/test";
 const canvas = (page: Page) =>
   page.getByRole("region", { name: "Design canvas", exact: true });
@@ -128,7 +129,7 @@ test("scroll, trackpad, Shift-scroll and arrows roam without changing zoom or la
   await expect(root(page)).toBeInViewport();
 });
 
-test("empty-canvas drag pans in Select mode while a click deselects; Hand toggle pans over frames", async ({
+test("empty-canvas drag pans in Move mode while a click deselects; grouped Hand pans over frames", async ({
   page,
 }) => {
   await root(page).click();
@@ -150,11 +151,12 @@ test("empty-canvas drag pans in Select mode while a click deselects; Hand toggle
   await expect(root(page)).toHaveAttribute("data-selected", "true");
   await canvas(page).click({ position: { x: 20, y: 130 } });
   await expect(root(page)).toHaveAttribute("data-selected", "false");
-  const hand = page.getByRole("button", {
-    name: "Pan canvas (H)",
+  const movement = page.getByRole("combobox", {
+    name: "Choose movement tool",
     exact: true,
   });
-  await hand.click();
+  await choose(movement, "hand");
+  const hand = page.getByRole("button", { name: "Hand (H)", exact: true });
   await expect(hand).toHaveAttribute("aria-pressed", "true");
   before = await matrix(page);
   const frame = (await root(page).boundingBox())!;
@@ -166,8 +168,10 @@ test("empty-canvas drag pans in Select mode while a click deselects; Hand toggle
   expect(after.x - before.x).toBeCloseTo(50, 2);
   expect(after.y - before.y).toBeCloseTo(30, 2);
   await expect(root(page)).toHaveAttribute("style", style!);
-  await hand.click();
-  await expect(hand).toHaveAttribute("aria-pressed", "false");
+  await choose(movement, "select");
+  await expect(
+    page.getByRole("button", { name: "Move (V)", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
 test("new desktop dialog works on narrow screens, blocks camera shortcuts and restores focus on cancel", async ({
@@ -186,7 +190,7 @@ test("new desktop dialog works on narrow screens, blocks camera shortcuts and re
   await page.keyboard.press("ArrowRight");
   expect(await matrix(page)).toEqual(before);
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   expect(
     await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth),

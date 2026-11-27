@@ -29,10 +29,11 @@ export interface ElementEffects {
 export interface EditorElement {
   id: string;
   name: string;
-  type: "frame" | "text" | "button";
+  type: "frame" | "text" | "button" | "shape";
   children: EditorElement[];
   styles: CSSProperties;
   content?: string;
+  vector?: VectorGeometry;
   breakpoint?: "desktop" | "tablet" | "mobile";
   componentId?: string;
   componentRole?: "master" | "instance";
@@ -44,8 +45,17 @@ export interface EditorElement {
   animations: Record<string, unknown>;
 }
 
+export type ShapeTool =
+  "rectangle" | "ellipse" | "line" | "arrow" | "triangle" | "polygon" | "star";
+export type VectorTool = ShapeTool | "pen" | "pencil";
+export interface VectorGeometry {
+  kind: VectorTool;
+  path: string;
+  width: number;
+  height: number;
+}
 export type EditorTool =
-  "select" | "scale" | "hand" | "frame" | "stack" | "text";
+  "select" | "scale" | "hand" | "frame" | "stack" | "text" | VectorTool;
 export type SidebarTab = "pages" | "layers" | "assets";
 export type Point = { x: number; y: number };
 export type CanvasConfig = { zoom: number; pan: Point };

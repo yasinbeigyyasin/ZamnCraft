@@ -51,7 +51,7 @@ test("Frame insertion uses zoom-correct parent coordinates and selects the new 2
   await expect(child).toHaveAttribute("data-selected", "true");
   await expect(desktop).toHaveAttribute("data-selected", "false");
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   const box = (await child.boundingBox())!;
   expect(box.x).toBeCloseTo(pointer.x, 1);
@@ -189,7 +189,7 @@ test("editing accepts shortcuts and multiline text without activating tools or p
     "Second line",
   );
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   const after = (await text.boundingBox())!;
   expect(after.x).toBeCloseTo(before!.x, 2);

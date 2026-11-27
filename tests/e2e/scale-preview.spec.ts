@@ -79,13 +79,13 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("Scale is beside Select; K uniformly scales contents, undo/redo and Escape restore the tree, and reload preserves edits", async ({
+test("Grouped Scale; K uniformly scales contents, undo/redo and Escape restore the tree, and reload preserves edits", async ({
   page,
 }) => {
   const tools = page.getByRole("navigation", { name: "Editor tools" });
-  await expect(tools.getByRole("button").nth(1)).toHaveAccessibleName(
-    "Scale (K)",
-  );
+  await expect(
+    tools.getByRole("combobox", { name: "Choose movement tool" }),
+  ).toBeVisible();
   const frame = await insert(page, root(page), "Frame", 300, 250);
   const text = await insert(page, frame, "Text", 20, 50);
   for (const [name, value] of [
@@ -225,7 +225,7 @@ test("the extra Scale tool keeps all toolbar actions inside small screens", asyn
       expect(rect.right, String(rect.name)).toBeLessThanOrEqual(width);
     }
     await expect(
-      page.getByRole("button", { name: "Scale (K)", exact: true }),
+      page.getByRole("button", { name: "Move (V)", exact: true }),
     ).toBeVisible();
   }
 });

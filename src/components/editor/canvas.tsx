@@ -7,7 +7,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { ChevronRight, Hand, Home, Maximize, Minus, Plus } from "lucide-react";
+import { ChevronRight, Home, Maximize, Minus, Plus } from "lucide-react";
 import {
   MAX_ZOOM,
   MIN_ZOOM,
@@ -19,6 +19,9 @@ import { PopoverSelect } from "./property-controls";
 import { BREAKPOINTS } from "@/lib/workspace";
 import { IconButton, tools } from "./editor-controls";
 import { NewDesktopDialog } from "./new-desktop-dialog";
+import { CanvasTools } from "./canvas-tools";
+import { useVectorDrawing } from "./use-vector-drawing";
+import { isVectorTool } from "@/lib/vector";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { useCanvasManipulation } from "./use-canvas-manipulation";
 
@@ -50,6 +53,7 @@ export function Canvas({
   const elements = useEditorStore((state) => state.elements);
   const { zoom, pan } = canvasConfig;
   const viewportRef = useRef<HTMLElement>(null);
+  const drawing = useVectorDrawing(viewportRef, suspended || preview);
   const fittedPages = useRef(new Set<string>());
   const spaceRef = useRef(false);
   const dragRef = useRef<{
@@ -184,6 +188,7 @@ export function Canvas({
         return;
       event.preventDefault();
       manipulation.finish(true);
+      drawing.cancel();
       spaceRef.current = true;
       setSpacePressed(true);
     }
@@ -218,7 +223,13 @@ export function Canvas({
       const zooming = event.ctrlKey || event.metaKey;
       if (preview && !zooming) return;
       event.preventDefault();
-      if (suspended || dragRef.current || manipulation.gesture.current) return;
+      if (
+        suspended ||
+        dragRef.current ||
+        manipulation.gesture.current ||
+        drawing.ref.current
+      )
+        return;
       const rect = viewport!.getBoundingClientRect();
       const unit =
         event.deltaMode === WheelEvent.DOM_DELTA_LINE
@@ -275,6 +286,10 @@ export function Canvas({
       activeTool !== "hand" &&
       !blankPan
     ) {
+      if (drawing.start(event)) {
+        suppressClickRef.current = true;
+        return;
+      }
       manipulation.start(event);
       return;
     }
@@ -396,6 +411,7 @@ export function Canvas({
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={(event) => {
+        drawing.move(event);
         manipulation.move(event);
         const drag = dragRef.current;
         if (drag && drag.pointerId === event.pointerId) {
@@ -408,16 +424,27 @@ export function Canvas({
         }
       }}
       onPointerUp={(event) => {
+        drawing.up(event);
         if (event.pointerId === manipulation.gesture.current?.pointerId)
           manipulation.finish();
         if (event.pointerId === dragRef.current?.pointerId) finishPan();
       }}
       onPointerCancel={(event) => {
+        drawing.cancel();
         if (event.pointerId === manipulation.gesture.current?.pointerId)
           manipulation.finish(true);
         finishPan();
       }}
+      onDoubleClickCapture={(event) => {
+        if (drawing.ref.current?.tool === "pen") {
+          event.preventDefault();
+          event.stopPropagation();
+          drawing.finish();
+        }
+      }}
       onLostPointerCapture={(event) => {
+        if (event.pointerId === drawing.ref.current?.pointerId)
+          drawing.cancel();
         if (event.pointerId === manipulation.gesture.current?.pointerId)
           manipulation.finish(true);
         finishPan();
@@ -427,7 +454,8 @@ export function Canvas({
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("[data-canvas-ui]")) return;
         const state = useEditorStore.getState();
-        if (state.activeTool === "hand") return;
+        if (state.activeTool === "hand" || isVectorTool(state.activeTool))
+          return;
         if (state.activeTool === "select" || state.activeTool === "scale") {
           setSelectedElementId(null);
           return;
@@ -444,6 +472,7 @@ export function Canvas({
           event.target !== event.currentTarget ||
           dragRef.current ||
           manipulation.gesture.current ||
+          drawing.ref.current ||
           suspended ||
           preview ||
           event.ctrlKey ||
@@ -485,6 +514,7 @@ export function Canvas({
         }}
       >
         <CanvasRenderer canInteract={canInteract} />
+        {drawing.overlay}
         {manipulation.guides.map((guide, index) => (
           <span
             key={index}
@@ -512,6 +542,7 @@ export function Canvas({
       {!preview && toolbarTarget
         ? createPortal(breakpointControls, toolbarTarget)
         : breakpointControls}
+      {!preview && <CanvasTools disabled={suspended} />}
       <div className="canvas-breadcrumb" data-canvas-ui hidden={preview}>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />
         <span>{pageName}</span>
@@ -524,9 +555,15 @@ export function Canvas({
           ? "Live preview · Esc to exit"
           : isPanning
             ? "Panning"
-            : activeTool === "scale"
-              ? "Scale · drag a handle to scale proportionally"
-              : `${activeToolLabel} selected`}
+            : activeTool === "pen"
+              ? "Pen · click points, drag for curves · Enter to finish · Esc to cancel"
+              : activeTool === "pencil"
+                ? "Pencil · drag to draw freehand · Esc to cancel"
+                : isVectorTool(activeTool)
+                  ? `${activeToolLabel} · drag to draw · Shift to constrain`
+                  : activeTool === "scale"
+                    ? "Scale · drag a handle to scale proportionally"
+                    : `${activeToolLabel} selected`}
       </p>
       <p
         id="canvas-navigation-help"
@@ -545,19 +582,6 @@ export function Canvas({
         aria-label="Canvas zoom"
         data-canvas-ui
       >
-        <IconButton
-          icon={Hand}
-          label="Pan canvas (H)"
-          className="canvas-pan-toggle"
-          aria-pressed={activeTool === "hand"}
-          hidden={preview}
-          onClick={() =>
-            useEditorStore
-              .getState()
-              .setActiveTool(activeTool === "hand" ? "select" : "hand")
-          }
-        />
-        <span className="control-divider" aria-hidden="true" />
         <IconButton
           icon={Minus}
           label="Zoom out"

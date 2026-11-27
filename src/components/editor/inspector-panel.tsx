@@ -37,6 +37,7 @@ import {
   type EditorElement,
 } from "@/store/editor-store";
 import { DEFAULT_EFFECTS } from "@/lib/element-effects";
+import { tools } from "./editor-controls";
 import { ScrubInput } from "./scrub-input";
 import { ColorField } from "./color-field";
 import { ShadowControls } from "./shadow-controls";
@@ -457,11 +458,13 @@ function ElementHeader({ element }: { element: EditorElement }) {
     [focused, setFocused] = useState(false);
   const Icon = element.componentId
     ? Component
-    : element.type === "text"
-      ? Type
-      : element.type === "frame"
-        ? Frame
-        : Square;
+    : element.vector
+      ? (tools.find((tool) => tool.id === element.vector!.kind)?.icon ?? Square)
+      : element.type === "text"
+        ? Type
+        : element.type === "frame"
+          ? Frame
+          : Square;
   const state = useEditorStore();
   function parentOf(
     nodes: EditorElement[],
@@ -658,7 +661,11 @@ function InspectorProperties({ element }: { element: EditorElement }) {
             label={`${axis === "width" ? "Width" : "Height"} sizing`}
             displayLabel={axis === "width" ? "Width" : "Height"}
             value={getSizingMode(styles[axis])}
-            items={sizing}
+            items={
+              element.vector
+                ? sizing.filter((option) => option.value !== "fit")
+                : sizing
+            }
             onChange={(value) =>
               updateSize(
                 id,

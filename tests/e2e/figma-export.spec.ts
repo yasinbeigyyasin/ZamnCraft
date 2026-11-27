@@ -72,7 +72,7 @@ test("Figma kit copies and downloads identical well-formed editable SVG, and the
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Select (V)", exact: true }),
+    page.getByRole("button", { name: "Move (V)", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("[data-editor-element]")).toHaveCount(1);
 });

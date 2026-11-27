@@ -17,7 +17,7 @@ import {
   type EditorElement,
   type SidebarTab,
 } from "@/store/useEditorStore";
-import { IconButton } from "./editor-controls";
+import { IconButton, tools } from "./editor-controls";
 import { PagesPanel, AssetsPanel } from "./sidebar-library";
 
 const tabs: SidebarTab[] = ["pages", "layers", "assets"];
@@ -53,11 +53,13 @@ function LayerItem({
   const linked = component || Boolean(element.componentId);
   const Icon = element.componentId
     ? Component
-    : element.type === "text"
-      ? Type
-      : element.type === "button"
-        ? Square
-        : Frame;
+    : element.vector
+      ? (tools.find((tool) => tool.id === element.vector!.kind)?.icon ?? Square)
+      : element.type === "text"
+        ? Type
+        : element.type === "button"
+          ? Square
+          : Frame;
 
   function startRename() {
     select(element.id);
