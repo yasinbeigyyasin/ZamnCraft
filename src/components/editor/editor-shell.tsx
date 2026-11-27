@@ -39,6 +39,22 @@ export function EditorShell() {
       )
         return;
 
+      if (event.key === "Delete" || event.key === "Backspace") {
+        const state = useEditorStore.getState();
+        if (state.selectedElementId) {
+          event.preventDefault();
+          const focused = document.activeElement;
+          state.deleteElement(state.selectedElementId);
+          requestAnimationFrame(() => {
+            if (focused && !focused.isConnected)
+              document
+                .getElementById("editor-canvas")
+                ?.focus({ preventScroll: true });
+          });
+        }
+        return;
+      }
+
       const selected = tools.find(
         (item) => item.shortcut.toLowerCase() === event.key.toLowerCase(),
       );

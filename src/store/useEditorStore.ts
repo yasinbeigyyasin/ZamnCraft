@@ -43,6 +43,18 @@ function updateElement(
   });
 }
 
+function removeElement(elements: EditorElement[], id: string): EditorElement[] {
+  return elements
+    .filter((element) => element.id !== id)
+    .map((element) => {
+      const children = removeElement(element.children, id);
+      return children.length !== element.children.length ||
+        children.some((child, index) => child !== element.children[index])
+        ? { ...element, children }
+        : element;
+    });
+}
+
 export interface EditorState {
   elements: EditorElement[];
   selectedElementId: string | null;
@@ -56,6 +68,8 @@ export interface EditorState {
     position: Point,
   ) => string | null;
   updateText: (id: string, content: string) => void;
+  renameElement: (id: string, name: string) => void;
+  deleteElement: (id: string) => void;
   setSelectedElementId: (id: string | null) => void;
   setActiveTool: (tool: EditorTool) => void;
   setTab: (tab: SidebarTab) => void;
@@ -150,6 +164,31 @@ export const useEditorStore = create<EditorState>((set) => ({
           ...text,
           content,
         })),
+      };
+    }),
+  renameElement: (id, name) =>
+    set((state) => {
+      const trimmed = name.trim();
+      const element = findElementById(state.elements, id);
+      if (!trimmed || !element || element.name === trimmed) return state;
+      return {
+        elements: updateElement(state.elements, id, (element) => ({
+          ...element,
+          name: trimmed,
+        })),
+      };
+    }),
+  deleteElement: (id) =>
+    set((state) => {
+      const element = findElementById(state.elements, id);
+      if (!element) return state;
+      const removesSelection =
+        state.selectedElementId !== null &&
+        (state.selectedElementId === id ||
+          !!findElementById(element.children, state.selectedElementId));
+      return {
+        elements: removeElement(state.elements, id),
+        selectedElementId: removesSelection ? null : state.selectedElementId,
       };
     }),
   setSelectedElementId: (id) =>

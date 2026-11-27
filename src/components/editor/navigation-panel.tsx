@@ -1,5 +1,9 @@
-import { useId } from "react";
+"use client";
+
+import { useId, useRef, useState } from "react";
 import {
+  ChevronDown,
+  ChevronRight,
   CircleHelp,
   Frame,
   Home,
@@ -7,6 +11,7 @@ import {
   LayoutTemplate,
   Square,
   Type,
+  Trash2,
 } from "lucide-react";
 import {
   useEditorStore,
@@ -24,32 +29,147 @@ function countElements(elements: EditorElement[]): number {
   );
 }
 
-function ElementLayers({ elements }: { elements: EditorElement[] }) {
-  const selectedElementId = useEditorStore((state) => state.selectedElementId);
+function LayerItem({
+  element,
+  depth,
+}: {
+  element: EditorElement;
+  depth: number;
+}) {
+  const selected = useEditorStore(
+    (state) => state.selectedElementId === element.id,
+  );
   const select = useEditorStore((state) => state.setSelectedElementId);
+  const renameElement = useEditorStore((state) => state.renameElement);
+  const deleteElement = useEditorStore((state) => state.deleteElement);
+  const [expanded, setExpanded] = useState(true);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState(element.name);
+  const cancelRename = useRef(false);
+  const selectRef = useRef<HTMLButtonElement>(null);
+  const childrenId = useId();
+  const Icon =
+    element.type === "text" ? Type : element.type === "button" ? Square : Frame;
+
+  function startRename() {
+    select(element.id);
+    setDraft(element.name);
+    cancelRename.current = false;
+    setRenaming(true);
+  }
+
   return (
-    <ul className="element-layers">
-      {elements.map((element) => (
-        <li key={element.id}>
+    <li>
+      <div
+        className="layer-row"
+        data-layer-id={element.id}
+        data-selected={selected}
+        style={{ paddingLeft: 4 + depth * 16 }}
+        onClick={() => select(element.id)}
+      >
+        {element.children.length > 0 ? (
           <button
             type="button"
-            className="layer-row"
-            aria-pressed={selectedElementId === element.id}
-            onClick={() => select(element.id)}
+            className="layer-disclosure"
+            aria-label={`${expanded ? "Collapse" : "Expand"} ${element.name}`}
+            aria-expanded={expanded}
+            aria-controls={childrenId}
+            onClick={(event) => {
+              event.stopPropagation();
+              setExpanded(!expanded);
+            }}
           >
-            {element.type === "text" ? (
-              <Type size={13} aria-hidden="true" />
-            ) : element.type === "button" ? (
-              <Square size={13} aria-hidden="true" />
+            {expanded ? (
+              <ChevronDown size={12} aria-hidden="true" />
             ) : (
-              <Frame size={13} aria-hidden="true" />
+              <ChevronRight size={12} aria-hidden="true" />
             )}
-            {element.name}
           </button>
-          {element.children.length > 0 && (
-            <ElementLayers elements={element.children} />
-          )}
-        </li>
+        ) : (
+          <span className="layer-disclosure" aria-hidden="true" />
+        )}
+        <Icon className="layer-type-icon" size={13} aria-hidden="true" />
+        {renaming ? (
+          <input
+            className="layer-name-input"
+            aria-label={`Rename ${element.name}`}
+            value={draft}
+            autoFocus
+            onFocus={(event) => event.currentTarget.select()}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={() => {
+              if (!cancelRename.current) renameElement(element.id, draft);
+              setRenaming(false);
+            }}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === "Enter" || event.key === "Escape") {
+                event.preventDefault();
+                cancelRename.current = event.key === "Escape";
+                event.currentTarget.blur();
+                requestAnimationFrame(() => selectRef.current?.focus());
+              }
+            }}
+          />
+        ) : null}
+        <button
+          ref={selectRef}
+          type="button"
+          className="layer-name"
+          hidden={renaming}
+          aria-pressed={selected}
+          aria-keyshortcuts="F2"
+          title={`${element.name} — double-click or press F2 to rename`}
+          onDoubleClick={startRename}
+          onKeyDown={(event) => {
+            if (event.key === "F2") {
+              event.preventDefault();
+              startRename();
+            }
+          }}
+        >
+          {element.name}
+        </button>
+        <button
+          type="button"
+          className="layer-delete"
+          aria-label={`Delete ${element.name}`}
+          title={`Delete ${element.name} and its children`}
+          onClick={(event) => {
+            event.stopPropagation();
+            const panel =
+              event.currentTarget.closest<HTMLElement>('[role="tabpanel"]');
+            deleteElement(element.id);
+            panel?.focus({ preventScroll: true });
+          }}
+        >
+          <Trash2 size={13} aria-hidden="true" />
+        </button>
+      </div>
+      {element.children.length > 0 && (
+        <div id={childrenId} hidden={!expanded}>
+          <ElementLayers elements={element.children} depth={depth + 1} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+function ElementLayers({
+  elements,
+  depth = 0,
+}: {
+  elements: EditorElement[];
+  depth?: number;
+}) {
+  return (
+    <ul
+      className="element-layers"
+      aria-label={depth === 0 ? "Page layers" : "Child layers"}
+    >
+      {elements.map((element) => (
+        <LayerItem key={element.id} element={element} depth={depth} />
       ))}
     </ul>
   );

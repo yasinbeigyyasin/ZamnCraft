@@ -109,7 +109,10 @@ export function EditorDialog({
             Hold Ctrl or Cmd and scroll to zoom at the pointer. Select Frame or
             Text, then click on the canvas or inside a frame to add an element.
             Double-click text to edit; Enter saves, Shift+Enter adds a line, and
-            Escape cancels. Property editing comes in a later step.
+            Escape cancels. In Layers, expand frames with their arrows and
+            double-click a name (or press F2) to rename it. Delete or Backspace
+            removes the selected layer and its children when you are not typing.
+            Property editing comes in a later step.
           </p>
         </div>
       ) : (

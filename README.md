@@ -48,7 +48,7 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Step 3: rendering, element insertion, and selection
+## Steps 3–4: rendering, element insertion, and interactive layers
 
 The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
@@ -74,19 +74,30 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 
 Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
 
-Property controls, preview, and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Moving, resizing, element deletion, and property editing are not implemented yet.
+Property controls, preview, and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Moving, resizing, and property editing are not implemented yet.
+
+## Interactive Layers panel
+
+Open the **Layers** tab to see the store's recursive element tree. Rows are 32px tall, indent 16px per level, and use Frame/Text/Button icons. Selected rows use `#0099FF` and stay in sync with canvas selection.
+
+- **Expand/collapse:** use the disclosure arrow on layers with children. This only changes the outline, not the canvas or selection. Expansion stays local to each sidebar instance; switching tabs preserves it.
+- **Rename:** double-click a layer name, or focus its name button and press F2. Enter or blur saves; Escape cancels. Names are trimmed; blank names are ignored. Renaming a text layer does not change its text content.
+- **Delete:** use the trash button (shown on hover, keyboard focus, or touch devices), or press Delete/Backspace with a layer selected. Deleting a parent also removes all descendants. Unrelated selections are preserved; selections in a deleted subtree are cleared. The final root can be deleted; new elements can still be inserted onto the blank canvas.
+- **Safe shortcuts:** deletion ignores text inputs, contentEditable text, composition, held-key repeats, Ctrl/Cmd/Alt combinations, handled events, and open dialogs. The navigation dialog still supports its explicit rename/trash controls on narrow screens.
+
+Store actions are `renameElement(id: string, name: string): void` and `deleteElement(id: string): void`. Both update nested trees immutably and ignore unknown IDs. Removal preserves unrelated element references. There is no undo or persistence yet: deletion is immediate and refresh resets the document.
 
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–3 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–4 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
-- `src/components/editor/editor-shell.tsx`: layout, toolbar, and tool shortcuts.
+- `src/components/editor/editor-shell.tsx`: layout, toolbar, tool shortcuts, and guarded deletion shortcuts.
 - `src/components/editor/canvas.tsx`: world transform, gesture guards, pan, zoom, and fit view.
 - `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, and inline text editing.
 - `src/types/editor.ts`: element, tool, and canvas data types.
-- `src/components/editor/navigation-panel.tsx`: tabs, recursive layer list, and selection.
+- `src/components/editor/navigation-panel.tsx`: tabs, recursive disclosures, selection, inline renaming, and trash controls.
 - `src/components/editor/inspector-panel.tsx`: disabled property controls.
 - `src/components/editor/editor-dialog.tsx`: modal lifecycle and empty states.
 - `src/components/editor/editor-controls.tsx`: shared icon button and tool definitions.

@@ -244,3 +244,68 @@ test("root insertion preserves negative world positions without modifying existi
   assert.equal(state.addElement(null, "text", { x: NaN, y: 0 }), null);
   assert.equal(useEditorStore.getState(), previous);
 });
+
+test("renaming nested layers trims names without changing text content or unrelated branches", () => {
+  const state = useEditorStore.getState();
+  const frameId = state.addElement("desktop", "frame", { x: 0, y: 0 })!;
+  const textId = state.addElement(frameId, "text", { x: 10, y: 10 })!;
+  const siblingId = state.addElement("desktop", "frame", { x: 250, y: 0 })!;
+  state.setSelectedElementId(textId);
+  const previous = useEditorStore.getState();
+  state.renameElement(textId, "  Heading  ");
+  const current = useEditorStore.getState();
+  assert.equal(findElementById(current.elements, textId)!.name, "Heading");
+  assert.equal(
+    findElementById(current.elements, textId)!.content,
+    "Double click to edit",
+  );
+  assert.equal(findElementById(previous.elements, textId)!.name, "Text");
+  assert.equal(
+    findElementById(current.elements, siblingId),
+    findElementById(previous.elements, siblingId),
+  );
+  assert.equal(current.selectedElementId, textId);
+  for (const name of ["", "  \n\t", "Heading"])
+    state.renameElement(textId, name);
+  state.renameElement("missing", "Ignored");
+  assert.equal(useEditorStore.getState(), current);
+  state.renameElement("desktop", "Page");
+  assert.equal(useEditorStore.getState().elements[0].name, "Page");
+});
+
+test("deleting nested subtrees clears descendant selections and preserves siblings immutably", () => {
+  const state = useEditorStore.getState();
+  const frameId = state.addElement("desktop", "frame", { x: 0, y: 0 })!;
+  const textId = state.addElement(frameId, "text", { x: 10, y: 10 })!;
+  const siblingId = state.addElement("desktop", "frame", { x: 250, y: 0 })!;
+  state.setSelectedElementId(textId);
+  const previous = useEditorStore.getState();
+  state.deleteElement(frameId);
+  const current = useEditorStore.getState();
+  assert.equal(current.selectedElementId, null);
+  assert.equal(findElementById(current.elements, frameId), undefined);
+  assert.equal(findElementById(current.elements, textId), undefined);
+  assert.ok(findElementById(previous.elements, textId));
+  assert.equal(
+    findElementById(current.elements, siblingId),
+    findElementById(previous.elements, siblingId),
+  );
+  state.deleteElement("missing");
+  assert.equal(useEditorStore.getState(), current);
+});
+
+test("deleting unrelated layers keeps selection and deleting the last root leaves a valid empty page", () => {
+  const state = useEditorStore.getState();
+  const textId = state.addElement("desktop", "text", { x: 0, y: 0 })!;
+  const rootId = state.addElement(null, "frame", { x: -250, y: 0 })!;
+  state.setSelectedElementId(textId);
+  state.deleteElement(rootId);
+  assert.equal(useEditorStore.getState().selectedElementId, textId);
+  state.deleteElement(textId);
+  assert.equal(useEditorStore.getState().selectedElementId, null);
+  state.setSelectedElementId("desktop");
+  state.deleteElement("desktop");
+  assert.deepEqual(useEditorStore.getState().elements, []);
+  assert.equal(useEditorStore.getState().selectedElementId, null);
+  assert.ok(state.addElement(null, "text", { x: 0, y: 0 }));
+});
