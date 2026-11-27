@@ -19,8 +19,25 @@ Open http://localhost:3000. The development server binds to `0.0.0.0` and allows
 npm test
 npm run typecheck
 npm run build
-npm start
 ```
+
+The production build exports static HTML, CSS, and JavaScript to `out/`. Serve that directory with any static web server; `next start` does not support static exports. For a local root-path preview, run `npx serve@14 out`.
+
+## GitHub Pages deployment
+
+`.github/workflows/deploy.yml` builds and deploys `out/` on every branch push, including branch names containing `/`. It also supports manual runs from the Actions tab. All branches deploy to the same Pages site, not separate branch previews; the latest completed deployment replaces the live site.
+
+The workflow uses Node.js 22 and `npm ci`. Project repositories build with `NEXT_PUBLIC_BASE_PATH=/<repository-name>`; user and organization repositories named `<owner>.github.io` use an empty base path. For this repository the public URL is https://yasinbeigyyasin.github.io/ZamnCraft/.
+
+In repository **Settings → Pages**, the deployment source must be **GitHub Actions**. The `github-pages` environment must also allow the branches you want to deploy. The deploy job requests `pages: write` and `id-token: write` permissions.
+
+To reproduce the project-path build locally:
+
+```sh
+NEXT_PUBLIC_BASE_PATH=/ZamnCraft npm run build
+```
+
+The base path is embedded at build time. Rebuild without the variable to serve the app at `/`. Exported images are unoptimized because Pages has no Next.js server.
 
 Browser regression tests use Playwright and Chromium. Install the browser and system dependencies once:
 
