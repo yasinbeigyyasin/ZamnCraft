@@ -1570,3 +1570,47 @@ kbd {
     right: auto;
   }
 }
+
+.figma-export {
+  padding: 20px;
+}
+.figma-export-option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 14px 0;
+  font-size: 11px;
+  color: #bbb;
+}
+.figma-export-option input {
+  margin-top: 2px;
+  accent-color: #0099ff;
+}
+.figma-export-preview {
+  border: 1px solid #333;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: #0a0a0a;
+}
+.figma-export-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.figma-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.figma-export-feedback {
+  min-height: 32px;
+  margin-top: 12px;
+  color: #aaa;
+  font-size: 11px;
+}
+.figma-export-actions .secondary-button {
+  margin: 0;
+  gap: 8px;
+}

@@ -1,16 +1,18 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { WorkspaceSettings } from "./workspace-settings";
+import { FigmaExport } from "./figma-export";
 import { CodeExport } from "./code-export";
 import { IconButton, tools } from "./editor-controls";
 import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
 
 export type EditorDialogKind =
-  "export" | "project" | "help" | "navigation" | "inspector";
+  "export" | "figma" | "project" | "help" | "navigation" | "inspector";
 
 const titles: Record<EditorDialogKind, string> = {
   export: "Export Code",
+  figma: "Copy UI to Figma",
   project: "Local workspace",
   help: "Editor shortcuts",
   navigation: "Project navigation",
@@ -21,10 +23,12 @@ export function EditorDialog({
   kind,
   onDismiss,
   onHelp,
+  onFigma,
 }: {
   kind: EditorDialogKind;
   onDismiss: () => void;
   onHelp: () => void;
+  onFigma: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -47,7 +51,7 @@ export function EditorDialog({
   return (
     <dialog
       ref={ref}
-      className={`editor-dialog ${kind === "export" ? "export-dialog" : ""}`}
+      className={`editor-dialog ${kind === "export" || kind === "figma" ? "export-dialog" : ""}`}
       aria-labelledby="editor-dialog-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -67,12 +71,17 @@ export function EditorDialog({
         <WorkspaceSettings onDismiss={onDismiss} />
       ) : kind === "export" ? (
         <CodeExport />
+      ) : kind === "figma" ? (
+        <FigmaExport />
       ) : kind === "navigation" ? (
         <NavigationPanel onHelp={onHelp} />
       ) : kind === "inspector" ? (
         <InspectorPanel />
       ) : kind === "help" ? (
         <div className="dialog-content">
+          <button type="button" className="secondary-button" onClick={onFigma}>
+            Copy UI to Figma
+          </button>
           <p className="dialog-description">
             Select a tool using the toolbar or these shortcuts.
           </p>

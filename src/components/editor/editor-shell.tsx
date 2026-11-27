@@ -305,6 +305,7 @@ export function EditorShell() {
       {dialog && (
         <EditorDialog
           kind={dialog}
+          onFigma={() => setDialog("figma")}
           onDismiss={() => setDialog(null)}
           onHelp={() => setDialog("help")}
         />
