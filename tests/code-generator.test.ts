@@ -143,7 +143,7 @@ test("every target is deterministic, immutable and excludes editor-only IDs", ()
       !code.includes("data-selected") && !code.includes("canvasConfig"),
     );
     assert.match(code, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-    assert.match(code, /left: -50px/);
+    assert.ok(!code.includes("left: -50px"));
     assert.match(code, /font-weight: 700/);
     assert.match(code, /line-height: 1.5/);
     assert.match(code, /filter: blur\(2px\)/);
@@ -394,5 +394,44 @@ test("responsive exports compile in each framework and contain ordered breakpoin
     }
     if (target.id === "svelte")
       assert.ok(compile(code, { filename: "Page.svelte" }).js.code);
+  }
+});
+
+test("single custom artboards discard canvas offsets and fit proportionally in every export target", () => {
+  const elements = fixture();
+  elements[0].breakpoint = undefined;
+  elements[0].styles = {
+    ...elements[0].styles,
+    width: 1920,
+    height: 1080,
+    left: 7280,
+    top: -900,
+  };
+  const before = structuredClone(elements);
+  for (const target of EXPORT_TARGETS) {
+    const code = generateCode(elements, target.id);
+    assert.ok(!code.includes("7280px") && !code.includes("-900px"));
+    assert.match(code, /viewport.clientWidth \/ 1920/);
+    assert.match(code, /1080 \* scale/);
+    assert.match(code, /new ResizeObserver/);
+    assert.match(code, /transform-origin: top left/);
+    assert.match(code, /left: 400px/);
+  }
+  assert.deepEqual(elements, before);
+});
+
+test("single tagged artboards also normalize offsets; fluid roots and multi-artboard exports do not get a fixed-ratio runtime", () => {
+  const elements = fixture();
+  elements[0].breakpoint = "desktop";
+  for (const target of EXPORT_TARGETS) {
+    assert.match(generateCode(elements, target.id), /function fitDesign/);
+    const fluid = structuredClone(elements);
+    fluid[0].styles.width = "100%";
+    assert.doesNotMatch(generateCode(fluid, target.id), /function fitDesign/);
+    assert.doesNotMatch(
+      generateCode([...elements, { ...elements[0], id: "second" }], target.id),
+      /function fitDesign/,
+    );
+    assert.doesNotMatch(generateCode([], target.id), /function fitDesign/);
   }
 });

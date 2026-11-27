@@ -92,51 +92,96 @@ function design(): EditorElement[] {
     },
   ];
 }
+function customDesign(): EditorElement[] {
+  return [
+    {
+      id: "custom",
+      name: "Custom desktop",
+      type: "frame",
+      animations: {},
+      styles: {
+        width: 1920,
+        height: 1080,
+        left: 7280,
+        top: -900,
+        backgroundColor: "#ffffff",
+      },
+      children: [
+        {
+          id: "edge",
+          name: "Far corner content",
+          type: "text",
+          content: "My remaining frame",
+          animations: {},
+          children: [],
+          styles: {
+            position: "absolute",
+            left: 1600,
+            top: 900,
+            width: 240,
+            height: 80,
+            color: "#111111",
+            backgroundColor: "#d6e5ed",
+            fontSize: 24,
+          },
+        },
+      ],
+    },
+  ];
+}
 let directory: string;
 const outputs = new Map<string, { js: string; css: string }>();
 test.beforeAll(async () => {
   await mkdir(".cache", { recursive: true });
   directory = await mkdtemp(resolve(".cache/export-runtime-"));
-  for (const framework of ["react", "vue", "svelte"] as ExportFramework[]) {
-    const code = generateCode(design(), framework);
-    let source = code,
-      css = "",
-      filename = `${framework}.tsx`,
-      entry = "";
-    if (framework === "react")
-      entry = `import { createElement } from "react"; import { createRoot } from "react-dom/client"; import Page from "./react.tsx"; createRoot(document.getElementById("app")).render(createElement(Page));`;
-    if (framework === "vue") {
-      const { descriptor } = parse(code);
-      source = compileScript(descriptor, {
-        id: "design",
-        inlineTemplate: true,
-      }).content;
-      css = descriptor.styles[0].content;
-      filename = "vue.ts";
-      entry = `import { createApp } from "vue"; import Page from "./vue.ts"; createApp(Page).mount("#app");`;
-    }
-    if (framework === "svelte") {
-      const result = compile(code, {
-        filename: "Page.svelte",
-        generate: "client",
+  for (const sample of ["normal", "custom"]) {
+    for (const framework of ["react", "vue", "svelte"] as ExportFramework[]) {
+      const code = generateCode(
+        sample === "custom" ? customDesign() : design(),
+        framework,
+      );
+      let source = code,
+        css = "",
+        filename = `${framework}.tsx`,
+        entry = "";
+      if (framework === "react")
+        entry = `import { createElement } from "react"; import { createRoot } from "react-dom/client"; import Page from "./react.tsx"; createRoot(document.getElementById("app")).render(createElement(Page));`;
+      if (framework === "vue") {
+        const { descriptor } = parse(code);
+        source = compileScript(descriptor, {
+          id: "design",
+          inlineTemplate: true,
+        }).content;
+        css = descriptor.styles[0].content;
+        filename = "vue.ts";
+        entry = `import { createApp } from "vue"; import Page from "./vue.ts"; createApp(Page).mount("#app");`;
+      }
+      if (framework === "svelte") {
+        const result = compile(code, {
+          filename: "Page.svelte",
+          generate: "client",
+        });
+        source = result.js.code;
+        css = result.css?.code ?? "";
+        filename = "svelte.js";
+        entry = `import { mount } from "svelte"; import Page from "./svelte.js"; mount(Page, { target: document.getElementById("app") });`;
+      }
+      await writeFile(resolve(directory, filename), source);
+      const bundle = await build({
+        stdin: { contents: entry, resolveDir: directory, loader: "ts" },
+        write: false,
+        bundle: true,
+        format: "iife",
+        platform: "browser",
+        jsx: "automatic",
+        define: { "process.env.NODE_ENV": '"production"' },
+        minify: true,
       });
-      source = result.js.code;
-      css = result.css?.code ?? "";
-      filename = "svelte.js";
-      entry = `import { mount } from "svelte"; import Page from "./svelte.js"; mount(Page, { target: document.getElementById("app") });`;
+      outputs.set(`${sample}-${framework}`, {
+        js: bundle.outputFiles[0].text,
+        css,
+      });
     }
-    await writeFile(resolve(directory, filename), source);
-    const bundle = await build({
-      stdin: { contents: entry, resolveDir: directory, loader: "ts" },
-      write: false,
-      bundle: true,
-      format: "iife",
-      platform: "browser",
-      jsx: "automatic",
-      define: { "process.env.NODE_ENV": '"production"' },
-      minify: true,
-    });
-    outputs.set(framework, { js: bundle.outputFiles[0].text, css });
   }
 });
 test.afterAll(async () => {
@@ -149,7 +194,7 @@ for (const framework of ["react", "vue", "svelte"]) {
   }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    const output = outputs.get(framework)!;
+    const output = outputs.get(`normal-${framework}`)!;
     await page.setContent(
       `<style>body { margin: 0; } ${output.css}</style><div id="app"></div>`,
     );
@@ -209,6 +254,61 @@ for (const framework of ["react", "vue", "svelte"]) {
     );
     await page.mouse.move(0, 0);
     await expect(stars.first()).toHaveCSS("background-image", beforeStar);
+    expect(errors).toEqual([]);
+  });
+}
+
+for (const framework of ["html", "react", "vue", "svelte"] as const) {
+  test(`${framework}: a lone custom 1920×1080 artboard is onscreen, scales without stretching, and resizes with its host`, async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    if (framework === "html")
+      await page.setContent(generateCode(customDesign(), "html"));
+    else {
+      const output = outputs.get(`custom-${framework}`)!;
+      await page.setContent(
+        `<style>body { margin: 0; } ${output.css}</style><div id="app"></div>`,
+      );
+      await page.addScriptTag({ content: output.js });
+    }
+    const frame = page.getByLabel("Custom desktop", { exact: true });
+    const content = page.getByText("My remaining frame", { exact: true });
+    for (const width of [2560, 1920, 1366, 810, 390, 1440]) {
+      await page.setViewportSize({ width, height: 1200 });
+      const scale = Math.min(1, width / 1920);
+      await expect
+        .poll(async () => Math.round((await frame.boundingBox())!.width))
+        .toBe(Math.round(1920 * scale));
+      const box = (await frame.boundingBox())!;
+      expect(Math.abs(box.x)).toBeLessThan(1);
+      expect(Math.abs(box.y)).toBeLessThan(1);
+      expect(Math.abs(box.height - 1080 * scale)).toBeLessThan(1);
+      const edge = (await content.boundingBox())!;
+      expect(Math.abs(edge.x - 1600 * scale)).toBeLessThan(1);
+      expect(Math.abs(edge.y - 900 * scale)).toBeLessThan(1);
+      await expect(content).toBeInViewport();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      const viewportHeight = await frame.evaluate(
+        (n) =>
+          n.parentElement!.parentElement!.parentElement!.getBoundingClientRect()
+            .height,
+      );
+      expect(Math.abs(viewportHeight - 1080 * scale)).toBeLessThan(1);
+    }
+    // A component embedded in a narrower host must not use the device's screen width.
+    await page.evaluate(() => {
+      const host = document.querySelector<HTMLElement>("#app") ?? document.body;
+      host.style.width = "640px";
+    });
+    await expect
+      .poll(async () => Math.round((await frame.boundingBox())!.width))
+      .toBe(640);
     expect(errors).toEqual([]);
   });
 }

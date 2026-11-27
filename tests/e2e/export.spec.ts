@@ -213,8 +213,9 @@ test("standalone HTML preserves literal hostile text and geometry and runs hover
   await expect(text).toHaveCSS("width", "200px");
   expect(
     await text.evaluate((element) => element.getBoundingClientRect().x),
-  ).toBeCloseTo(192, 0);
-  expect(await exported.locator("script").count()).toBe(0);
+  ).toBeCloseTo(192 * Math.min(1, exported.viewportSize()!.width / 1920), 0);
+  expect(await exported.locator("script").count()).toBe(1);
+  expect(await exported.evaluate(() => "compromised" in window)).toBe(false);
   await text.hover();
   await expect(text).toHaveCSS("background-color", "rgb(0, 153, 255)");
   const scale = () =>
@@ -258,4 +259,71 @@ test("mobile export keeps tabs, code scrolling, copy and download within the vie
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("downloaded HTML stays visible after all defaults are deleted except an offset custom 1920×1080 artboard", async ({
+  page,
+  context,
+}) => {
+  const { createWorkspace, createDesktop, serializeWorkspace, WORKSPACE_KEY } =
+    await import("../../src/lib/workspace");
+  const workspace = createWorkspace();
+  const custom = createDesktop("custom-desktop");
+  delete custom.breakpoint;
+  custom.name = "My desktop";
+  custom.styles = { ...custom.styles, left: 7280, top: -900 };
+  custom.children = [
+    {
+      id: "my-content",
+      name: "My content",
+      type: "text",
+      content: "My actual design",
+      animations: {},
+      children: [],
+      styles: {
+        position: "absolute",
+        left: 1600,
+        top: 900,
+        width: 240,
+        height: 80,
+        fontSize: 24,
+        color: "#111111",
+      },
+    },
+  ];
+  workspace.pages[0].elements = [custom];
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
+    key: WORKSPACE_KEY,
+    value: serializeWorkspace(workspace),
+  });
+  await page.reload();
+  await expect(
+    page.locator('[data-editor-element="custom-desktop"]'),
+  ).toHaveCount(1);
+  const dialog = await openExport(page);
+  await dialog.getByRole("tab", { name: "HTML/CSS", exact: true }).click();
+  const pending = page.waitForEvent("download");
+  await dialog
+    .getByRole("button", { name: "Download File", exact: true })
+    .click();
+  const download = await pending;
+  const code = await readFile((await download.path())!, "utf8");
+  expect(code).not.toContain("7280px");
+  const exported = await context.newPage();
+  await exported.setViewportSize({ width: 1366, height: 768 });
+  await exported.setContent(code);
+  await expect(
+    exported.getByText("My actual design", { exact: true }),
+  ).toBeInViewport();
+  const box = (await exported
+    .getByLabel("My desktop", { exact: true })
+    .boundingBox())!;
+  expect(box.x).toBe(0);
+  expect(box.y).toBe(0);
+  expect(box.width).toBeCloseTo(1366, 0);
+  expect(box.height).toBeCloseTo((1080 * 1366) / 1920, 0);
+  await expect(
+    page.locator('[data-editor-element="custom-desktop"]'),
+  ).toHaveCSS("width", "1920px");
+  await exported.close();
 });

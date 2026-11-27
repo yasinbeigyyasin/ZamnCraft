@@ -158,7 +158,7 @@ Click **Export Code** to open the current page's generated source. Framework tab
 | Svelte          | `Page.svelte` | Svelte 5 with TypeScript support. Uses reusable snippets and an embedded style block.                                                                                                                                                     |
 | HTML/CSS        | `index.html`  | Open directly in a browser. Standalone HTML with embedded CSS; component instances become ordinary markup.                                                                                                                                |
 
-`generateCode(elements, framework)` in `src/lib/code-generator.ts` is a pure, deterministic compiler: stable names and sorted style properties, no UUIDs, timestamps, canvas camera, selection handles, or editor runtime. It preserves Free/Stack/Grid, root and parent-local positions, fixed/Fill/Fit sizing, typography, borders, fills, opacity, blur, shadow, and current instance content. Equivalent linked component trees share definitions in framework exports; local overrides produce separate variants rather than silently being discarded. Only components present on the active page are emitted.
+`generateCode(elements, framework)` in `src/lib/code-generator.ts` is a pure, deterministic compiler: stable names and sorted style properties, no UUIDs, timestamps, canvas camera, selection handles, or editor runtime. It preserves Free/Stack/Grid, multi-artboard placement and parent-local positions, fixed/Fill/Fit sizing, typography, borders, fills, opacity, blur, shadow, and current instance content. Equivalent linked component trees share definitions in framework exports; local overrides produce separate variants rather than silently being discarded. Only components present on the active page are emitted.
 
 Generated CSS is scoped under a deterministic design-specific class. React uses Tailwind utilities for layout plus CSS declarations for exact editor values. Vue, Svelte, and HTML use native CSS appear keyframes, hover/active selectors, and sampled spring easing (with ease-out fallback). All targets respect reduced-motion preferences. Content remains literal text; markup/template/script delimiters and CSS boundary characters are escaped, never evaluated by the viewer.
 
@@ -249,3 +249,12 @@ While **holding an item with the left mouse button on the canvas**:
 - **Scroll/trackpad** pans the canvas while keeping the held layer at the pointer (Shift + scroll pans horizontally).
 - **Hold Space and move the pointer** to temporarily pan without changing the layer's local position. Release Space, keeping the left button held, to resume moving it without a jump.
 - Release the left button to finish the move, or press **Escape** to cancel it. The move remains one undoable action even after panning. Zooming during a held drag stays disabled.
+
+
+### Exporting a single remaining custom frame
+
+A lone frame exports at the page origin, regardless of where it was positioned on the editor canvas or whether it has a Desktop breakpoint tag. Deleting the original Desktop/Tablet/Mobile artboards therefore does not leave the remaining custom design off-screen.
+
+For a fixed-size single frame (for example **1920 × 1080**), React, Vue, Svelte, and standalone HTML exports include a small `ResizeObserver` auto-fit helper. It scales the complete design uniformly down to the available **container width**, preserves its aspect ratio and internal coordinates, and updates the exported container height on resize. Wider screens keep the original design size; shorter screens can scroll vertically. Editor data and the authored frame dimensions are unchanged. Download the code again after refreshing the editor; older downloaded files do not update themselves.
+
+Auto-fitting preserves a fixed composition; it does not invent mobile layouts or enlarge text independently. Author Tablet/Mobile variants for genuinely rearranged layouts. Existing multiple-breakpoint exports keep their media-query behavior. Fluid/auto-size frames are not given a fixed-ratio auto-fit runtime. Standalone HTML now includes its own sizing script and needs JavaScript enabled for auto-fit; the design remains at the page origin without it.

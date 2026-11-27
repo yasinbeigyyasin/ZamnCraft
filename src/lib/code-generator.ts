@@ -31,7 +31,7 @@ export const EXPORT_TARGETS = [
     label: "HTML/CSS",
     filename: "index.html",
     mime: "text/html",
-    note: "Standalone HTML with embedded CSS · no dependencies.",
+    note: "Standalone HTML with embedded CSS and auto-fit script · no dependencies.",
   },
 ] as const;
 
@@ -149,6 +149,15 @@ export function generateCode(
     typeof desktop?.styles.height === "number" ? desktop.styles.height : 1080;
   const responsive =
     elements.filter((element) => element.breakpoint).length > 1;
+  const singleFrame = elements.length === 1 && desktop === elements[0];
+  const fitSingle =
+    singleFrame &&
+    typeof desktop.styles.width === "number" &&
+    typeof desktop.styles.height === "number" &&
+    Number.isFinite(designWidth) &&
+    designWidth > 0 &&
+    Number.isFinite(designHeight) &&
+    designHeight > 0;
   const css = [
     `.zc-design, .zc-design * { box-sizing: border-box; }`,
     `.zc-design { position: relative; width: ${designWidth}px; height: ${designHeight}px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5; color: #fff; isolation: isolate; }`,
@@ -323,8 +332,14 @@ export function generateCode(
     wrapper: rule(
       {
         position: "absolute",
-        left: responsive && element.breakpoint ? 0 : (element.styles.left ?? 0),
-        top: responsive && element.breakpoint ? 0 : (element.styles.top ?? 0),
+        left:
+          singleFrame || (responsive && element.breakpoint)
+            ? 0
+            : (element.styles.left ?? 0),
+        top:
+          singleFrame || (responsive && element.breakpoint)
+            ? 0
+            : (element.styles.top ?? 0),
         width:
           (responsive && element.breakpoint) || element.styles.width === "100%"
             ? "100%"
@@ -352,6 +367,11 @@ export function generateCode(
       );
     }
   }
+  if (fitSingle)
+    css.push(
+      `.zc-viewport { width: 100%; max-width: ${designWidth}px; overflow: hidden; }`,
+      `.zc-viewport > .zc-design { transform-origin: top left; }`,
+    );
   const utilities = (node: Node) =>
     [
       "box-border",
@@ -434,7 +454,25 @@ export function generateCode(
   for (const char of baseCss)
     hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
   const scope = `zc-design-${(hash >>> 0).toString(36)}`;
-  const stylesheet = baseCss.replaceAll(".zc-design", `.${scope}`);
+  const viewportClass = `${scope}-viewport`;
+  const stylesheet = baseCss
+    .replaceAll(".zc-design", `.${scope}`)
+    .replaceAll(".zc-viewport", `.${viewportClass}`);
+  const fitRuntime = fitSingle
+    ? `function fitDesign(viewport${framework === "html" ? "" : ": HTMLElement"}) {
+  const design = viewport.firstElementChild${framework === "html" ? "" : " as HTMLElement"};
+  if (!design) return { destroy() {} };
+  const update = () => {
+    const scale = Math.min(1, viewport.clientWidth / ${designWidth});
+    design.style.transform = "scale(" + scale + ")";
+    viewport.style.height = (${designHeight} * scale) + "px";
+  };
+  const observer = new ResizeObserver(update);
+  observer.observe(viewport);
+  update();
+  return { destroy: () => observer.disconnect() };
+}`
+    : "";
   if (framework === "react") {
     const anyMotion = [
       ...roots.map((root) => root.node),
@@ -444,9 +482,12 @@ export function generateCode(
       (def) =>
         `function ${def.name}({ className = "" }: { className?: string }) {\n${hasMotion(def.node) ? "  const reducedMotion = useReducedMotion();\n" : ""}  return (\n${indent(react(def.node, true), 4)}\n  );\n}`,
     );
-    return `"use client";\n\n// Requires Tailwind CSS${anyMotion ? " and npm install framer-motion" : ""}.\n${anyMotion ? 'import { motion, useReducedMotion } from "framer-motion";\n\n' : ""}${functions.length ? functions.join("\n\n") + "\n\n" : ""}const styles = ${templateLiteral(stylesheet)};\n\nexport default function Page() {\n${roots.some((root) => hasMotion(root.node)) ? "  const reducedMotion = useReducedMotion();\n" : ""}  return (\n    <div className="${scope} relative">\n      <style>{styles}</style>\n${roots.map((root) => `      <div className="${root.wrapper}">\n${indent(react(root.node), 8)}\n      </div>`).join("\n")}\n    </div>\n  );\n}\n`;
+    return `"use client";\n\n// Requires Tailwind CSS${anyMotion ? " and npm install framer-motion" : ""}.\n${fitSingle ? 'import { useEffect, useRef } from "react";\n' : ""}${anyMotion ? 'import { motion, useReducedMotion } from "framer-motion";\n\n' : ""}${fitSingle ? fitRuntime + "\n\n" : ""}${functions.length ? functions.join("\n\n") + "\n\n" : ""}const styles = ${templateLiteral(stylesheet)};\n\nexport default function Page() {\n${fitSingle ? "  const viewport = useRef<HTMLDivElement>(null);\n  useEffect(() => {\n    if (viewport.current) return fitDesign(viewport.current).destroy;\n  }, []);\n" : ""}${roots.some((root) => hasMotion(root.node)) ? "  const reducedMotion = useReducedMotion();\n" : ""}  return (\n${fitSingle ? `    <div ref={viewport} className="${viewportClass}">\n` : ""}    <div className="${scope} relative">\n      <style>{styles}</style>\n${roots.map((root) => `      <div className="${root.wrapper}">\n${indent(react(root.node), 8)}\n      </div>`).join("\n")}\n    </div>\n${fitSingle ? "    </div>\n" : ""}  );\n}\n`;
   }
-  const body = `<div class="${scope}">\n${roots.map((root) => `  <div class="${root.wrapper}">\n${indent(markup(root.node), 4)}\n  </div>`).join("\n")}\n</div>`;
+  const designBody = `<div class="${scope}">\n${roots.map((root) => `  <div class="${root.wrapper}">\n${indent(markup(root.node), 4)}\n  </div>`).join("\n")}\n</div>`;
+  const body = fitSingle
+    ? `<div ${framework === "vue" ? 'ref="viewport" ' : framework === "svelte" ? "use:fitDesign " : ""}class="${viewportClass}">\n${indent(designBody, 2)}\n</div>`
+    : designBody;
   if (framework === "vue") {
     const h = (node: Node, extra = false): string => {
       const props = `{ class: ${extra ? `[${json(node.className)}, props.className]` : json(node.className)}, "aria-label": ${json(node.name)}${node.tag === "button" ? ', type: "button"' : ""} }`;
@@ -454,7 +495,7 @@ export function generateCode(
         ? `h(${node.reference}, { className: ${json(node.className)} })`
         : `h(${json(node.tag)}, ${props}, [${[...(node.text !== undefined ? [json(node.text)] : []), ...node.children.map((child) => h(child))].join(", ")}])`;
     };
-    return `<template>\n${indent(body, 2)}\n</template>\n\n<script setup lang="ts">\n${
+    return `<template>\n${indent(body, 2)}\n</template>\n\n<script setup lang="ts">\n${fitSingle ? 'import { ref, onMounted, onBeforeUnmount } from "vue";\n' + fitRuntime + "\nconst viewport = ref<HTMLElement | null>(null);\nlet cleanup: (() => void) | undefined;\nonMounted(() => { if (viewport.value) cleanup = fitDesign(viewport.value).destroy; });\nonBeforeUnmount(() => cleanup?.());\n" : ""}${
       definitions.length
         ? `import { defineComponent, h } from "vue";\n\n${[...definitions]
             .reverse()
@@ -467,6 +508,6 @@ export function generateCode(
     }\n</script>\n\n<style>\n${stylesheet}\n</style>\n`;
   }
   if (framework === "svelte")
-    return `<script lang="ts">\n  // Svelte 5 snippets share reusable component markup.\n</script>\n\n${definitions.map((def) => `{#snippet ${def.name}(className: string)}\n${indent(markup(def.node, true), 2)}\n{/snippet}\n\n`).join("")}${body}\n\n<style>\n :global {\n${indent(stylesheet, 2)}\n}\n</style>\n`;
-  return `<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Exported design</title>\n  <style>\n    body { margin: 0; }\n${indent(stylesheet, 4)}\n  </style>\n</head>\n<body>\n${indent(body, 2)}\n</body>\n</html>\n`;
+    return `<script lang="ts">\n  // Svelte 5 snippets share reusable component markup.\n${fitSingle ? indent(fitRuntime, 2) + "\n" : ""}</script>\n\n${definitions.map((def) => `{#snippet ${def.name}(className: string)}\n${indent(markup(def.node, true), 2)}\n{/snippet}\n\n`).join("")}${body}\n\n<style>\n :global {\n${indent(stylesheet, 2)}\n}\n</style>\n`;
+  return `<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Exported design</title>\n  <style>\n    body { margin: 0; }\n${indent(stylesheet, 4)}\n  </style>\n</head>\n<body>\n${indent(body, 2)}\n${fitSingle ? `  <script>\n${indent(fitRuntime, 4)}\n    fitDesign(document.querySelector(".${viewportClass}"));\n  </script>\n` : ""}</body>\n</html>\n`;
 }
