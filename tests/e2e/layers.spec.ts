@@ -177,7 +177,7 @@ test("Delete and Backspace remove selected layers but ignore editing, compositio
   await input.press("Escape");
   await text.dblclick();
   const editor = page.getByRole("textbox", {
-    name: "Text content",
+    name: "Text content on canvas",
     exact: true,
   });
   await editor.fill("Test");

@@ -133,7 +133,7 @@ test("Text inserts into the innermost frame, edits inline, saves, and cancels", 
   );
   await text.dblclick();
   const editor = page.getByRole("textbox", {
-    name: "Text content",
+    name: "Text content on canvas",
     exact: true,
   });
   await expect(editor).toBeFocused();
@@ -174,7 +174,7 @@ test("editing accepts shortcuts and multiline text without activating tools or p
   );
   await text.dblclick();
   const editor = page.getByRole("textbox", {
-    name: "Text content",
+    name: "Text content on canvas",
     exact: true,
   });
   await editor.fill("Draft");
@@ -211,7 +211,7 @@ test("pasted markup is stored and rendered as plain text", async ({ page }) => {
   );
   await text.dblclick();
   const editor = page.getByRole("textbox", {
-    name: "Text content",
+    name: "Text content on canvas",
     exact: true,
   });
   await editor.evaluate((node) => {
@@ -312,7 +312,7 @@ test("blank-canvas text and frames insert at the pointer after pan and zoom, inc
   expect(worldPosition.y).toBeLessThan(0);
   await text.dblclick();
   const editor = page.getByRole("textbox", {
-    name: "Text content",
+    name: "Text content on canvas",
     exact: true,
   });
   await editor.fill("Outside text works");

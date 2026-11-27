@@ -112,7 +112,8 @@ export function EditorDialog({
             Escape cancels. In Layers, expand frames with their arrows and
             double-click a name (or press F2) to rename it. Delete or Backspace
             removes the selected layer and its children when you are not typing.
-            Property editing comes in a later step.
+            Use the Inspector to adjust position, size, layout, styles, and
+            typography. Changes apply immediately.
           </p>
         </div>
       ) : (

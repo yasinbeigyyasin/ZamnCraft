@@ -239,7 +239,7 @@ test("mobile retains navigation and inspector access without overflow or duplica
     inspector.getByRole("heading", { name: "Position", exact: true }),
   ).toBeVisible();
   await expect(
-    inspector.getByRole("textbox", { name: "Width", exact: true }),
+    inspector.getByRole("spinbutton", { name: "Width", exact: true }),
   ).toBeDisabled();
   await page.keyboard.press("Escape");
   await expect(

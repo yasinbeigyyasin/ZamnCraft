@@ -48,7 +48,7 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Steps 3–4: rendering, element insertion, and interactive layers
+## Steps 3–5: canvas, interactive layers, and live Inspector
 
 The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
@@ -74,7 +74,7 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 
 Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
 
-Property controls, preview, and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Moving, resizing, and property editing are not implemented yet.
+Preview and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Canvas drag-to-move and resize handles are not implemented yet; position and size can be changed through the Inspector.
 
 ## Interactive Layers panel
 
@@ -87,9 +87,23 @@ Open the **Layers** tab to see the store's recursive element tree. Rows are 32px
 
 Store actions are `renameElement(id: string, name: string): void` and `deleteElement(id: string): void`. Both update nested trees immutably and ignore unknown IDs. Removal preserves unrelated element references. There is no undo or persistence yet: deletion is immediate and refresh resets the document.
 
+## Live Inspector
+
+Select an element on the canvas or in Layers. The existing Inspector updates immediately and enables its property controls; clearing/deleting the selection disables them. The narrow-screen Inspector dialog uses the same live bindings.
+
+- **Position:** Absolute/Relative, X and Y (CSS `left`/`top`, in unscaled parent-local pixels). Root offsets use canvas world coordinates. Negative offsets are supported.
+- **Size:** W/H numeric edits make that axis Fixed. Fill uses 100% of the parent; in a Stack's main axis, Fill children share the remaining space. Fit uses CSS intrinsic `fit-content`; absolutely positioned children do not contribute to intrinsic sizing. Switching to Fixed captures the rendered dimension. Percentage height needs a definite parent height; root Fill uses the canvas's 1200 × 800 reference size.
+- **Layout:** Free, Stack, or Grid. Stack supports horizontal/vertical direction, gap, padding, and main/cross alignment. Grid supports 1–12 columns, gap, padding, and alignment. Switching to Stack/Grid puts immediate children in relative flow; returning to Free restores their saved positions. New children in Stack/Grid join its flow. A child's Position control can explicitly override flow positioning.
+- **Styles:** native fill color picker and hex input (3/6/8-digit hex), Remove fill, 0–100% opacity, corner radius, border style/width/color. Invalid color or numeric drafts revert on blur without corrupting the element. Empty numeric input is a temporary draft, not an accidental zero.
+- **Typography:** text content, font size, numeric weight, text color, and alignment. Inspector text edits update the canvas immediately; saving inline canvas text updates the Inspector. Content remains plain text, not HTML.
+
+`updateStyles(id, patch)` merges CSS properties immutably. `updatePosition(id, patch)`, `updateSize(id, axis, number | "fill" | "fit")`, and `updateLayout(id, "free" | "stack" | "grid")` provide property-specific actions. `updateText(id, content)` remains the shared text action. Unknown IDs, non-finite numbers, negative dimensions/spacing, and out-of-range opacity are ignored. Unrelated branches and selection are preserved. Both store import paths reference a single instance.
+
+Effects editing, persistence, and undo remain out of scope. Refresh still resets the session.
+
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–4 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–5 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
@@ -98,8 +112,9 @@ Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned ski
 - `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, and inline text editing.
 - `src/types/editor.ts`: element, tool, and canvas data types.
 - `src/components/editor/navigation-panel.tsx`: tabs, recursive disclosures, selection, inline renaming, and trash controls.
-- `src/components/editor/inspector-panel.tsx`: disabled property controls.
+- `src/components/editor/inspector-panel.tsx`: live position, size, layout, style, and typography controls.
 - `src/components/editor/editor-dialog.tsx`: modal lifecycle and empty states.
 - `src/components/editor/editor-controls.tsx`: shared icon button and tool definitions.
-- `src/store/useEditorStore.ts`: element tree, selection, tool state, and canvas actions.
+- `src/store/editor-store.ts`: canonical element tree, selection, tool state, canvas actions, and property actions.
+- `src/store/useEditorStore.ts`: compatibility re-export of the same Zustand store.
 - `src/app/globals.css`: theme, control styles, and responsive layout.

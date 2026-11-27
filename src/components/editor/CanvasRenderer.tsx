@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ClipboardEvent,
+  type CSSProperties,
   type MouseEvent,
 } from "react";
 import { Monitor } from "lucide-react";
@@ -33,10 +34,12 @@ const ElementNode = memo(function ElementNodeView({
   element,
   canInteract,
   root = false,
+  parentStyles,
 }: {
   element: EditorElement;
   canInteract: () => boolean;
   root?: boolean;
+  parentStyles?: CSSProperties;
 }) {
   const selected = useEditorStore(
     (state) => state.selectedElementId === element.id,
@@ -51,6 +54,11 @@ const ElementNode = memo(function ElementNodeView({
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const content = element.content ?? element.name;
   const Tag = element.type === "button" ? "button" : "div";
+  const fillsStack =
+    parentStyles?.display === "flex" &&
+    (parentStyles.flexDirection?.startsWith("column")
+      ? element.styles.height === "100%"
+      : element.styles.width === "100%");
 
   useLayoutEffect(() => {
     const node = nodeRef.current;
@@ -131,6 +139,9 @@ const ElementNode = memo(function ElementNodeView({
         ...element.styles,
         position: element.styles.position || "relative",
         ...(root ? { position: "relative", left: 0, top: 0 } : {}),
+        ...(fillsStack && element.styles.position !== "absolute"
+          ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 }
+          : {}),
       }}
       aria-label={element.name}
       {...(element.type === "button"
@@ -157,7 +168,7 @@ const ElementNode = memo(function ElementNodeView({
           contentEditable={editing ? "plaintext-only" : false}
           suppressContentEditableWarning
           role={editing ? "textbox" : undefined}
-          aria-label={editing ? `${element.name} content` : undefined}
+          aria-label={editing ? `${element.name} content on canvas` : undefined}
           aria-multiline={editing ? true : undefined}
           spellCheck={editing}
           onPointerDown={(event) => {
@@ -200,7 +211,12 @@ const ElementNode = memo(function ElementNodeView({
         content
       ) : null}
       {element.children.map((child) => (
-        <ElementNode key={child.id} element={child} canInteract={canInteract} />
+        <ElementNode
+          key={child.id}
+          element={child}
+          canInteract={canInteract}
+          parentStyles={element.styles}
+        />
       ))}
       {/* Counter-scaling keeps selection borders and labels screen-sized. */}
       {selected && (
@@ -238,7 +254,22 @@ export function CanvasRenderer({
     <div
       key={element.id}
       className={element.type === "frame" ? "canvas-artboard" : "canvas-root"}
-      style={{ left: element.styles.left ?? 0, top: element.styles.top ?? 0 }}
+      style={{
+        left: element.styles.left ?? 0,
+        top: element.styles.top ?? 0,
+        width:
+          element.styles.width === "100%"
+            ? "100%"
+            : typeof element.styles.width === "number"
+              ? element.styles.width
+              : "max-content",
+        height:
+          element.styles.height === "100%"
+            ? "100%"
+            : typeof element.styles.height === "number"
+              ? element.styles.height
+              : undefined,
+      }}
     >
       {element.type === "frame" && selectedElementId !== element.id && (
         <div

@@ -489,6 +489,8 @@ kbd {
   background: #2b2b2b;
 }
 .canvas-world {
+  width: 1200px;
+  height: 800px;
   position: absolute;
   top: 0;
   left: 0;
@@ -1048,4 +1050,108 @@ kbd {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Live inspector controls retain the original compact panel geometry. */
+.inspector-properties {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.inspector-properties:not(:disabled) .inspector-field,
+.inspector-properties:not(:disabled) .inspector-select,
+.inspector-properties:not(:disabled) .property-row {
+  color: #aaa;
+}
+.inspector-properties:not(:disabled) input,
+.inspector-properties:not(:disabled) select,
+.inspector-properties:not(:disabled) textarea {
+  color: #ddd;
+  -webkit-text-fill-color: #ddd;
+}
+.inspector-properties select option {
+  background: #191919;
+  color: #ddd;
+}
+.inspector-properties:not(:disabled) .layout-options button {
+  color: #aaa;
+}
+.inspector-properties:not(:disabled) button[aria-pressed="true"] {
+  color: #fff;
+  background: #303030;
+}
+.inspector-properties .alignment-icons {
+  gap: 2px;
+}
+.inspector-properties .alignment-icons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+.inspector-spaced {
+  margin-top: 12px;
+}
+.inspector-properties .field-grid .inspector-select {
+  margin: 0;
+  gap: 4px;
+  padding: 6px;
+}
+.inspector-properties .field-grid .inspector-select span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inspector-color {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.inspector-color:first-child {
+  margin-top: 0;
+}
+.inspector-color > span {
+  flex: 1;
+}
+.inspector-color input[type="color"] {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid #343434;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.inspector-color input[type="text"] {
+  width: 88px;
+  min-width: 0;
+  padding: 4px;
+  border-radius: 4px;
+  background: #1b1b1b;
+}
+.color-clear {
+  width: 16px;
+}
+.inspector-text-label {
+  display: block;
+  color: #aaa;
+}
+.inspector-text-label textarea {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  margin-top: 8px;
+  padding: 8px;
+  resize: vertical;
+  border: 1px solid #292929;
+  border-radius: 4px;
+  background: #1b1b1b;
+  font: inherit;
+}
+.inspector-field > span {
+  flex-shrink: 0;
+  margin-right: 8px;
+  white-space: nowrap;
 }

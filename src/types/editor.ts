@@ -7,6 +7,8 @@ export interface EditorElement {
   children: EditorElement[];
   styles: CSSProperties;
   content?: string;
+  // Preserve free-layout offsets while a parent arranges children in flow.
+  freePosition?: Pick<CSSProperties, "position" | "left" | "top">;
   // Animation data stays open until the animation schema is defined.
   animations: any;
 }
