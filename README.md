@@ -50,25 +50,26 @@ Playwright starts the development server automatically, or reuses an existing se
 
 ## Steps 3–9: canvas, components, pages, and code export
 
-The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
+The original dark editor chrome is preserved: a 52px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
 ### State and data
 
 `EditorElement` describes a recursive tree with `id`, `name`, `type` (`frame`, `text`, or `button`), `children`, React `CSSProperties`, an optional `content` string, and typed `effects` (appear, hover, press, transition, blur, and shadow). Older trees without effects receive defaults when edited; new elements own independent defaults. The legacy `animations` record is retained for compatibility. The default tree contains one Desktop root frame.
 
-`useEditorStore` owns `elements`, `selectedElementId`, `activeTool` (`select`, `frame`, or `text`), `canvasConfig`, and the existing navigation tab. Canvas zoom is a **scale factor** (`1 = 100%`), bounded to 0.25–2. Pan uses viewport pixels and has no positional boundary. `addElement` immutably appends a child to a frame, or a root element when its parent is null, selects it, and returns to Select. `updateText` stores plain text without changing the element name. Invalid numeric values are ignored. Changing or replacing the tree clears selections that no longer exist.
+`useEditorStore` owns `elements`, `selectedElementId`, `activeTool` (`select`, `hand`, `frame`, `stack`, or `text`), `canvasConfig`, and the existing navigation tab. Canvas zoom is a **scale factor** (`1 = 100%`), bounded to 0.25–2. Pan uses viewport pixels and has no positional boundary. `addElement` immutably appends a child to a frame, or a root element when its parent is null, selects it, and returns to Select. `updateText` stores plain text without changing the element name. Invalid numeric values are ignored. Changing or replacing the tree clears selections that no longer exist.
 
 ### Canvas controls
 
-- **Pan:** hold Space and left-drag on the canvas, or middle-mouse drag with any tool. Pointer capture keeps the drag working outside the canvas; release, cancellation, window blur, or opening a dialog ends the gesture.
-- **Zoom:** Ctrl/Cmd + mouse wheel, anchored under the pointer. The non-passive wheel handler prevents browser zoom. Plain scrolling does not zoom.
+- **Pan:** drag empty canvas in Select mode, scroll or use a trackpad, or press H / toggle the bottom-right Hand button to drag anywhere. Shift + scroll pans horizontally; canvas-focused arrow keys pan by 40px (Shift: 160px). Space + drag and middle-mouse drag also work with any tool. Pointer capture keeps the drag working outside the canvas; release, cancellation, window blur, or opening a dialog ends the gesture.
+- **Zoom:** Ctrl/Cmd + mouse wheel, anchored under the pointer. The non-passive wheel handler prevents browser zoom. Plain scrolling pans without changing zoom.
 - **Zoom display:** bottom-right controls show the current percentage, zoom in/out, and reset to 100%. Button zoom is anchored at the viewport center.
 - **Fit view:** fits the Desktop frame on first load; the fit-view button recenters it for the current viewport. Resizing the viewport does not automatically discard the user's pan/zoom.
 - **Select:** click an element in Select mode or its Layers entry. Click empty canvas space to clear the selection. Panning does not change selection.
+- **New desktop:** use **New desktop** beside the breakpoint controls. Choose a laptop/desktop preset or enter whole-pixel width and height (1–10,000). Each creates a blank white artboard to the right, selects it, and focuses the camera. Existing frames/content are untouched; creation is undoable and saved locally. Extra desktops are independent artboards, not linked responsive variants. Resize them later with the Inspector.
 - **Add a Frame:** choose Frame (or press F), then click on the blank canvas or inside any existing frame. A gray 200 × 200 frame is inserted at the clicked world or parent-local position, accounting for pan and zoom.
 - **Add Text:** choose Text (or press T), then click on the blank canvas or inside a frame. Root text is white against the dark canvas; text inside frames is dark. The new text is `Double click to edit`. Insertion selects the new child and returns to Select.
 - **Edit Text:** double-click it, then type. Enter or clicking away saves; Shift+Enter inserts a line break; Escape discards the draft. Pasted content is inserted as plain text, never HTML. Empty text remains selectable.
-- **Tools:** V / F / T select the supported tools. C creates a reusable component from the selection. Stack creation remains disabled in the toolbar; use the Inspector’s Stack layout.
+- **Tools:** V / H / F / S / T select Select, Hand, Frame, Stack, or Text. C creates a reusable component from the selection.
 
 `CanvasRenderer.tsx` walks the frame/text/button tree recursively. Each element stops click propagation so its parent is not selected accidentally. A selected element gets a screen-sized 2px blue border and a small blue name/dimensions label. ResizeObserver keeps the dimensions accurate as text changes. Chrome, zoom controls, and breadcrumbs stay outside the transformed world. Grid spacing and origin follow the world transform. Text and button nodes use `content` when present, falling back to their name.
 
@@ -89,12 +90,12 @@ Store actions are `renameElement(id: string, name: string): void` and `deleteEle
 
 ## Live Inspector
 
-Select an element on the canvas or in Layers. The existing Inspector updates immediately and enables its property controls; clearing/deleting the selection disables them. The narrow-screen Inspector dialog uses the same live bindings.
+Select an element on the canvas or in Layers. The existing Inspector updates immediately and enables its property controls; clearing/deleting the selection shows Canvas Settings. The narrow-screen Inspector dialog uses the same live bindings.
 
 - **Position:** Absolute/Relative, X and Y (CSS `left`/`top`, in unscaled parent-local pixels). Root offsets use canvas world coordinates. Negative offsets are supported.
 - **Size:** W/H numeric edits make that axis Fixed. Fill uses 100% of the parent; in a Stack's main axis, Fill children share the remaining space. Fit uses CSS intrinsic `fit-content`; absolutely positioned children do not contribute to intrinsic sizing. Switching to Fixed captures the rendered dimension. Percentage height needs a definite parent height; root Fill uses the canvas's 1200 × 800 reference size.
 - **Layout:** Free, Stack, or Grid. Stack supports horizontal/vertical direction, gap, padding, and main/cross alignment. Grid supports 1–12 columns, gap, padding, and alignment. Switching to Stack/Grid puts immediate children in relative flow; returning to Free restores their saved positions. New children in Stack/Grid join its flow. A child's Position control can explicitly override flow positioning.
-- **Styles:** native fill color picker and hex input (3/6/8-digit hex), Remove fill, 0–100% opacity, corner radius, border style/width/color. Invalid color or numeric drafts revert on blur without corrupting the element. Empty numeric input is a temporary draft, not an accidental zero.
+- **Styles:** custom color picker (saturation/brightness, hue, alpha and swatches) and hex input (3/4/6/8-digit hex), Remove fill, 0–100% opacity, corner radius, border style/width/color. Invalid color or numeric drafts revert on blur without corrupting the element. Empty numeric input is a temporary draft, not an accidental zero.
 - **Typography:** text content, font size, numeric weight, text color, and alignment. Inspector text edits update the canvas immediately; saving inline canvas text updates the Inspector. Content remains plain text, not HTML.
 
 `updateStyles(id, patch)` merges CSS properties immutably. `updatePosition(id, patch)`, `updateSize(id, axis, number | "fill" | "fit")`, and `updateLayout(id, "free" | "stack" | "grid")` provide property-specific actions. `updateText(id, content)` remains the shared text action. Unknown IDs, non-finite numbers, negative dimensions/spacing, and out-of-range opacity are ignored. Unrelated branches and selection are preserved. Both store import paths reference a single instance.

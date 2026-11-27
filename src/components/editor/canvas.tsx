@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { PopoverSelect } from "./property-controls";
 import { BREAKPOINTS } from "@/lib/workspace";
 import { IconButton, tools } from "./editor-controls";
+import { NewDesktopDialog } from "./new-desktop-dialog";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { useCanvasManipulation } from "./use-canvas-manipulation";
 
@@ -29,7 +30,13 @@ function isTextInput(target: EventTarget | null) {
   );
 }
 
-export function Canvas({ suspended = false }: { suspended?: boolean }) {
+export function Canvas({
+  suspended: externallySuspended = false,
+}: {
+  suspended?: boolean;
+}) {
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const suspended = externallySuspended || desktopOpen;
   const { activeTool, canvasConfig, setPan, setZoom, setSelectedElementId } =
     useEditorStore();
   const activePageId = useEditorStore((state) => state.activePageId);
@@ -49,6 +56,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     pointerId: number;
     start: Point;
     pan: Point;
+    moved: boolean;
   } | null>(null);
   const suppressClickRef = useRef(false);
   const suppressClick = useCallback(() => {
@@ -204,7 +212,11 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     const viewport = viewportRef.current;
     if (!viewport) return;
     function handleWheel(event: WheelEvent) {
-      if (!event.ctrlKey && !event.metaKey) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-canvas-ui]") || isTextInput(event.target))
+        return;
+      const zooming = event.ctrlKey || event.metaKey;
+      if (preview && !zooming) return;
       event.preventDefault();
       if (suspended || dragRef.current || manipulation.gesture.current) return;
       const rect = viewport!.getBoundingClientRect();
@@ -214,6 +226,14 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
             ? rect.height
             : 1;
+      if (!zooming) {
+        const { pan } = useEditorStore.getState().canvasConfig;
+        const dx =
+          event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX;
+        const dy = event.shiftKey && event.deltaX === 0 ? 0 : event.deltaY;
+        setPan({ x: pan.x - dx * unit, y: pan.y - dy * unit });
+        return;
+      }
       const delta = Math.max(-1000, Math.min(1000, event.deltaY * unit));
       const currentZoom = useEditorStore.getState().canvasConfig.zoom;
       setZoom(currentZoom * Math.exp(-delta * 0.002), {
@@ -224,7 +244,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     // A passive wheel listener cannot prevent the browser's own Ctrl/Cmd zoom.
     viewport.addEventListener("wheel", handleWheel, { passive: false });
     return () => viewport.removeEventListener("wheel", handleWheel);
-  }, [suspended, setZoom, manipulation.gesture]);
+  }, [suspended, preview, setZoom, setPan, manipulation.gesture]);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
     if (
@@ -234,12 +254,27 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         event.target.closest("[data-canvas-ui]"))
     )
       return;
-    if (event.button !== 0 && event.button !== 1) return;
+    if (
+      (event.button !== 0 && event.button !== 1) ||
+      !event.isPrimary ||
+      dragRef.current
+    )
+      return;
     if (event.button === 0 && isTextInput(event.target)) return;
     if (preview && event.button !== 1 && !spaceRef.current) return;
     suppressClickRef.current = false;
     event.currentTarget.focus({ preventScroll: true });
-    if (event.button !== 1 && !spaceRef.current && activeTool !== "hand") {
+    const target = event.target instanceof Element ? event.target : null;
+    const blankPan =
+      !preview &&
+      activeTool === "select" &&
+      !target?.closest("[data-editor-element]");
+    if (
+      event.button !== 1 &&
+      !spaceRef.current &&
+      activeTool !== "hand" &&
+      !blankPan
+    ) {
       manipulation.start(event);
       return;
     }
@@ -248,8 +283,10 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       pointerId: event.pointerId,
       start: { x: event.clientX, y: event.clientY },
       pan: { ...useEditorStore.getState().canvasConfig.pan },
+      moved: false,
     };
-    suppressClickRef.current = true;
+    suppressClickRef.current =
+      !blankPan || event.button === 1 || spaceRef.current;
     event.currentTarget.setPointerCapture(event.pointerId);
     setIsPanning(true);
   }
@@ -284,36 +321,49 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           onChange={(value) => useEditorStore.getState().setPreviewRoot(value)}
         />
       ) : (
-        BREAKPOINTS.map((config) => {
-          const frame = elements.find(
-            (element) => element.breakpoint === config.id,
-          );
-          if (config.id === "desktop" && !frame) return null;
-          return (
-            <button
-              key={config.id}
-              type="button"
-              disabled={
-                suspended ||
-                (!frame &&
-                  !elements.some((element) => element.type === "frame"))
-              }
-              aria-label={`${frame ? "Focus" : "Add"} ${config.name} breakpoint`}
-              onClick={() => {
-                if (frame) {
-                  setSelectedElementId(frame.id);
-                  fitToView(frame.id);
-                } else if (config.id !== "desktop") {
-                  useEditorStore.getState().addBreakpoint(config.id);
-                  fitToView();
+        <>
+          <button
+            type="button"
+            className="new-desktop-trigger"
+            aria-label="New desktop"
+            title="Create a desktop with preset or custom dimensions"
+            disabled={externallySuspended}
+            onClick={() => setDesktopOpen(true)}
+          >
+            <Plus size={12} />
+            <span>New desktop</span>
+          </button>
+          {BREAKPOINTS.map((config) => {
+            const frame = elements.find(
+              (element) => element.breakpoint === config.id,
+            );
+            if (config.id === "desktop" && !frame) return null;
+            return (
+              <button
+                key={config.id}
+                type="button"
+                disabled={
+                  suspended ||
+                  (!frame &&
+                    !elements.some((element) => element.type === "frame"))
                 }
-              }}
-            >
-              {frame ? "" : "+ "}
-              {config.name} <span>{config.width}</span>
-            </button>
-          );
-        })
+                aria-label={`${frame ? "Focus" : "Add"} ${config.name} breakpoint`}
+                onClick={() => {
+                  if (frame) {
+                    setSelectedElementId(frame.id);
+                    fitToView(frame.id);
+                  } else if (config.id !== "desktop") {
+                    useEditorStore.getState().addBreakpoint(config.id);
+                    fitToView();
+                  }
+                }}
+              >
+                {frame ? "" : "+ "}
+                {config.name} <span>{frame?.styles.width ?? config.width}</span>
+              </button>
+            );
+          })}
+        </>
       )}
     </div>
   );
@@ -348,11 +398,14 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       onPointerMove={(event) => {
         manipulation.move(event);
         const drag = dragRef.current;
-        if (drag && drag.pointerId === event.pointerId)
-          setPan({
-            x: drag.pan.x + event.clientX - drag.start.x,
-            y: drag.pan.y + event.clientY - drag.start.y,
-          });
+        if (drag && drag.pointerId === event.pointerId) {
+          const dx = event.clientX - drag.start.x,
+            dy = event.clientY - drag.start.y;
+          if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+          drag.moved = true;
+          suppressClickRef.current = true;
+          setPan({ x: drag.pan.x + dx, y: drag.pan.y + dy });
+        }
       }}
       onPointerUp={(event) => {
         if (event.pointerId === manipulation.gesture.current?.pointerId)
@@ -384,6 +437,41 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         state.addElement(null, state.activeTool, {
           x: (event.clientX - bounds.left - pan.x) / zoom,
           y: (event.clientY - bounds.top - pan.y) / zoom,
+        });
+      }}
+      onKeyDown={(event) => {
+        if (
+          event.target !== event.currentTarget ||
+          dragRef.current ||
+          manipulation.gesture.current ||
+          suspended ||
+          preview ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+            event.key,
+          )
+        )
+          return;
+        event.preventDefault();
+        const step = event.shiftKey ? 160 : 40;
+        const { pan } = useEditorStore.getState().canvasConfig;
+        setPan({
+          x:
+            pan.x +
+            (event.key === "ArrowLeft"
+              ? step
+              : event.key === "ArrowRight"
+                ? -step
+                : 0),
+          y:
+            pan.y +
+            (event.key === "ArrowUp"
+              ? step
+              : event.key === "ArrowDown"
+                ? -step
+                : 0),
         });
       }}
       onAuxClick={(event) => {
@@ -444,7 +532,10 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         data-canvas-ui
         hidden={preview}
       >
-        <kbd>Space</kbd> + drag to pan <span>· Ctrl / ⌘ + scroll to zoom</span>
+        Drag empty canvas or scroll to pan{" "}
+        <span>
+          · <kbd>Space</kbd> + drag anywhere · Ctrl / ⌘ + scroll to zoom
+        </span>
       </p>
       <div
         className="canvas-controls"
@@ -452,13 +543,18 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         aria-label="Canvas zoom"
         data-canvas-ui
       >
-        <span
-          className="canvas-hand-hint"
-          title="Hold Space and drag, or drag with the middle mouse button"
-          aria-hidden="true"
-        >
-          <Hand size={14} />
-        </span>
+        <IconButton
+          icon={Hand}
+          label="Pan canvas (H)"
+          className="canvas-pan-toggle"
+          aria-pressed={activeTool === "hand"}
+          hidden={preview}
+          onClick={() =>
+            useEditorStore
+              .getState()
+              .setActiveTool(activeTool === "hand" ? "select" : "hand")
+          }
+        />
         <span className="control-divider" aria-hidden="true" />
         <IconButton
           icon={Minus}
@@ -488,6 +584,18 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           onClick={() => fitToView()}
         />
       </div>
+      {desktopOpen && (
+        <NewDesktopDialog
+          onDismiss={() => setDesktopOpen(false)}
+          onCreate={(width, height) => {
+            const id = useEditorStore.getState().addDesktop(width, height);
+            if (id) {
+              setDesktopOpen(false);
+              fitToView(id);
+            }
+          }}
+        />
+      )}
     </section>
   );
 }

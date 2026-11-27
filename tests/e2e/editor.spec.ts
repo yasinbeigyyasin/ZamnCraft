@@ -256,6 +256,10 @@ test("page loads without browser errors or hydration failures", async ({
     if (message.type() === "error") errors.push(message.text());
   });
   await page.reload();
+  await expect(page.locator(".canvas-world")).not.toHaveCSS(
+    "transform",
+    "matrix(1, 0, 0, 1, 0, 0)",
+  );
   await page.getByRole("button", { name: "Frame (F)", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Frame selected");
   expect(errors).toEqual([]);

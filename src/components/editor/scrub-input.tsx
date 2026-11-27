@@ -7,6 +7,7 @@ export function ScrubInput({
   label,
   value,
   onChange,
+  onCancel,
   displayLabel = label,
   min = -10000000,
   max = 10000000,
@@ -17,6 +18,7 @@ export function ScrubInput({
   label: string;
   value: number;
   onChange: (value: number) => void;
+  onCancel?: (value: number) => void;
   displayLabel?: string;
   min?: number;
   max?: number;
@@ -28,14 +30,15 @@ export function ScrubInput({
   const [focused, setFocused] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const focusValue = useRef(value);
   const gesture = useRef<{
     x: number;
     value: number;
     pointer: number;
     node: HTMLButtonElement;
   } | null>(null);
-  const current = useRef({ value, onChange, min, max });
-  current.current = { value, onChange, min, max };
+  const current = useRef({ value, onChange, onCancel, min, max });
+  current.current = { value, onChange, onCancel, min, max };
   const clamp = (number: number) =>
     Math.min(
       current.current.max,
@@ -46,6 +49,7 @@ export function ScrubInput({
     if (!active) return;
     gesture.current = null;
     useEditorStore.getState().endHistory(cancel);
+    if (cancel) current.current.onCancel?.(active.value);
     if (active.node.hasPointerCapture(active.pointer))
       active.node.releasePointerCapture(active.pointer);
     setScrubbing(false);
@@ -128,6 +132,7 @@ export function ScrubInput({
         disabled={disabled}
         value={focused ? draft : value}
         onFocus={() => {
+          focusValue.current = value;
           setDraft(String(value));
           setFocused(true);
           useEditorStore.getState().beginHistory();
@@ -157,6 +162,7 @@ export function ScrubInput({
             event.preventDefault();
             event.stopPropagation();
             useEditorStore.getState().endHistory(true);
+            current.current.onCancel?.(focusValue.current);
             event.currentTarget.blur();
           }
         }}

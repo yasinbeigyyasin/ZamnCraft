@@ -335,3 +335,59 @@ test("Stack tool creates an ordinary editable flex frame in one undo step", () =
     "flex",
   );
 });
+
+test("new desktops have independent dimensions, blank content, safe placement and atomic undo", () => {
+  const state = useEditorStore.getState();
+  state.addElement("desktop", "text", { x: 20, y: 30 });
+  const original = useEditorStore.getState().elements[0];
+  const id = state.addDesktop(1920, 1080)!;
+  const current = useEditorStore.getState();
+  const added = findElementById(current.elements, id)!;
+  assert.equal(current.elements[0], original);
+  assert.equal(added.name, "Desktop 1920 × 1080");
+  assert.equal(added.styles.width, 1920);
+  assert.equal(added.styles.height, 1080);
+  assert.equal(added.styles.left, 1280);
+  assert.equal(added.styles.backgroundColor, "#ffffff");
+  assert.equal(added.breakpoint, undefined);
+  assert.deepEqual(added.children, []);
+  assert.equal(current.selectedElementId, id);
+  assert.equal(current.tab, "layers");
+  const second = state.addDesktop(1366, 768)!;
+  assert.equal(
+    findElementById(useEditorStore.getState().elements, second)!.styles.left,
+    3280,
+  );
+  state.undo();
+  assert.equal(
+    findElementById(useEditorStore.getState().elements, second),
+    undefined,
+  );
+  assert.ok(findElementById(useEditorStore.getState().elements, id));
+  state.redo();
+  assert.ok(findElementById(useEditorStore.getState().elements, second));
+});
+
+test("new desktop creation rejects invalid dimensions and preview mutations, and recreates an empty page", () => {
+  const state = useEditorStore.getState();
+  for (const [width, height] of [
+    [0, 900],
+    [-1, 900],
+    [1440.5, 900],
+    [Infinity, 900],
+    [NaN, 900],
+    [1440, 10001],
+    [1440, 0],
+    [1440, 900.5],
+  ])
+    assert.equal(state.addDesktop(width, height), null);
+  assert.equal(useEditorStore.getState().elements.length, 1);
+  state.setPreviewMode(true);
+  assert.equal(state.addDesktop(1440, 900), null);
+  state.setPreviewMode(false);
+  state.deleteElement("desktop");
+  const id = state.addDesktop(1440, 900)!;
+  const added = findElementById(useEditorStore.getState().elements, id)!;
+  assert.equal(added.breakpoint, "desktop");
+  assert.equal(added.styles.left, 0);
+});

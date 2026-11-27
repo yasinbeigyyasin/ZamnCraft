@@ -116,6 +116,7 @@ export interface EditorState {
     error?: string,
   ) => void;
   addBreakpoint: (breakpoint: "tablet" | "mobile") => string | null;
+  addDesktop: (width: number, height: number) => string | null;
   setPreviewRoot: (id: string) => void;
   elements: EditorElement[];
   pages: EditorPage[];
@@ -460,6 +461,50 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         elements: [...state.elements, frame],
         selectedElementId: frame.id,
         activeTool: "select",
+      });
+      return frame.id;
+    },
+    addDesktop: (width, height) => {
+      const state = get();
+      if (
+        state.isPreviewMode ||
+        !Number.isInteger(width) ||
+        !Number.isInteger(height) ||
+        width < 1 ||
+        height < 1 ||
+        width > 10000 ||
+        height > 10000
+      )
+        return null;
+      const frame = createDesktop(crypto.randomUUID());
+      frame.name = `Desktop ${width} × ${height}`;
+      // Extra desktops are independent artboards, not duplicate responsive breakpoints.
+      if (state.elements.some((element) => element.breakpoint === "desktop"))
+        delete frame.breakpoint;
+      const right = Math.max(
+        0,
+        ...state.elements.map(
+          (element) =>
+            (typeof element.styles.left === "number"
+              ? element.styles.left
+              : 0) +
+            (typeof element.styles.width === "number"
+              ? element.styles.width
+              : 1200),
+        ),
+      );
+      frame.styles = {
+        ...frame.styles,
+        width,
+        height,
+        left: state.elements.length ? right + 80 : 0,
+        top: 0,
+      };
+      set({
+        elements: [...state.elements, frame],
+        selectedElementId: frame.id,
+        activeTool: "select",
+        tab: "layers",
       });
       return frame.id;
     },

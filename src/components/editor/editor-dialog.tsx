@@ -97,8 +97,11 @@ export function EditorDialog({
           </div>
           <p className="dialog-description">
             Hold Space and drag, or drag with the middle mouse button, to pan.
-            Hold Ctrl or Cmd and scroll to zoom at the pointer. Select Frame or
-            Text, then click on the canvas or inside a frame to add an element.
+            Scroll or use a trackpad to pan; Shift + scroll pans horizontally.
+            Drag empty canvas in Select mode to roam. Hold Ctrl or Cmd and
+            scroll to zoom at the pointer. Use New desktop to add a blank
+            artboard with preset or custom dimensions. Select Frame or Text,
+            then click on the canvas or inside a frame to add an element.
             Double-click text to edit; Enter saves, Shift+Enter adds a line, and
             Escape cancels. In Layers, expand frames with their arrows and
             double-click a name (or press F2) to rename it. Delete or Backspace

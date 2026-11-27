@@ -281,3 +281,20 @@ test("canvas background is validated, undoable, persisted and backward compatibl
   old.canvasBackground = "red; background: url(untrusted)";
   assert.throws(() => parseWorkspace(JSON.stringify(old)));
 });
+
+test("multiple custom-size desktops persist without duplicate responsive breakpoints", () => {
+  const first = store().addDesktop(1440, 900)!;
+  const second = store().addDesktop(1920, 1080)!;
+  const saved = serializeWorkspace(store());
+  const parsed = parseWorkspace(saved);
+  store().hydrateWorkspace(parsed);
+  assert.equal(node(first).styles.width, 1440);
+  assert.equal(node(second).styles.height, 1080);
+  assert.equal(
+    store().elements.filter((element) => element.breakpoint === "desktop")
+      .length,
+    1,
+  );
+  assert.equal(store().elements[0].styles.width, 1200);
+  assert.equal(store().elements[0].children.length, 0);
+});
