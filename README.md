@@ -227,3 +227,13 @@ The tool dock is bottom-centered **inside the canvas**, between the side panels;
 - Every finished drawing is one undoable edit, supports layer naming/deletion, Inspector fill/stroke/opacity, Move/Resize/Scale, linked components, browser persistence, and Preview. Shapes and paths export as self-contained SVG image backgrounds in React, Vue, Svelte, and HTML; no remote assets or runtime drawing library are required.
 
 Paths currently edit as whole layers, not individual nodes after completion. Polygon/star point counts are fixed, strokes are constant-width (no pressure sensitivity), and boolean operations/vector networks are not included. Existing saved frames and other workspace data remain unchanged.
+
+
+## Multiple selection
+
+- In **Move** (or Scale) mode, hold **Ctrl** (Cmd on Mac) and **left-drag** a rectangle to select fully enclosed layers. Dragging either direction works, including when starting over a layer. This selects without panning, moving, or resizing content. Escape, pointer cancellation, or losing window focus restores the previous selection.
+- **Ctrl/Cmd + click** on the canvas or a Layers row toggles that item, including deselecting an already-selected item.
+- In **Layers**, plain-click an anchor, then **Shift + click** another row to select the contiguous visible range, in either direction. Collapsed descendants are skipped. Ctrl/Cmd + Shift + click adds the range to the existing selection.
+- Drag a selected layer to move the selection together. A selected descendant follows its selected parent rather than moving twice. **Delete/Backspace** deletes the selected subtrees in one step; **undo/redo** restores the complete group and selection. Escape cancels the entire active move.
+
+Selection is shared between Layers and canvas outlines, but is not persisted as document content. Preview does not permit selection edits. The Inspector shows the selection count instead of silently editing only one selected layer; choose one layer for property editing, resizing, scaling, or creating a component. Multi-layer movement does not currently snap as a group.

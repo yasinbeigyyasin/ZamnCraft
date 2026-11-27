@@ -1,3 +1,4 @@
+import { selectedRoots, selectionRange } from "@/lib/selection";
 import { validVector } from "@/lib/vector";
 import type { VectorGeometry } from "@/types/editor";
 import { create } from "zustand";
@@ -134,6 +135,15 @@ export interface EditorState {
   detachInstance: (id: string) => void;
   editMaster: (componentId: string) => void;
   selectedElementId: string | null;
+  selectedElementIds: string[];
+  selectionAnchorId: string | null;
+  setSelectedElementIds: (ids: string[], anchor?: string | null) => void;
+  toggleSelection: (id: string) => void;
+  selectRange: (id: string, order: string[], additive?: boolean) => void;
+  deleteSelectedElements: () => void;
+  moveElements: (
+    positions: { id: string; left: number; top: number }[],
+  ) => void;
   activeTool: EditorTool;
   tab: SidebarTab;
   canvasConfig: CanvasConfig;
@@ -195,6 +205,8 @@ function snapshot(state: EditorState): HistorySnapshot {
     components: state.components,
     activePageId: state.activePageId,
     selectedElementId: state.selectedElementId,
+    selectedElementIds: state.selectedElementIds,
+    selectionAnchorId: state.selectionAnchorId,
   };
 }
 function documentChanged(
@@ -228,13 +240,26 @@ function restore(
   )!;
   const selected =
     "selectedElementId" in document ? document.selectedElementId : null;
+  const ids =
+    "selectedElementIds" in document && document.selectedElementIds
+      ? document.selectedElementIds.filter((id) =>
+          findElementById(page.elements, id),
+        )
+      : selected && findElementById(page.elements, selected)
+        ? [selected]
+        : [];
   return {
     ...document,
+    selectedElementIds: ids,
+    selectionAnchorId:
+      "selectionAnchorId" in document
+        ? (document.selectionAnchorId ?? null)
+        : null,
     canvasBackground: document.canvasBackground ?? "#0a0a0a",
     elements: page.elements,
     canvasConfig: page.canvasConfig,
     selectedElementId:
-      selected && findElementById(page.elements, selected) ? selected : null,
+      selected && ids.includes(selected) ? selected : (ids.at(-1) ?? null),
     isPreviewMode: false,
     previewCanvasConfig: null,
     previewRootId: null,
@@ -301,6 +326,20 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
       const elements = pages.find(
         (page) => page.id === next.activePageId,
       )!.elements;
+      const requested =
+        "selectedElementIds" in update
+          ? (update.selectedElementIds ?? [])
+          : "selectedElementId" in update
+            ? update.selectedElementId
+              ? [update.selectedElementId]
+              : []
+            : state.selectedElementIds;
+      const selectedElementIds = [...new Set(requested)].filter((id) =>
+        findElementById(elements, id),
+      );
+      const primary = selectedElementIds.includes(next.selectedElementId ?? "")
+        ? next.selectedElementId
+        : (selectedElementIds.at(-1) ?? null);
       const document = { ...next, pages, components, elements };
       const changedDocument = documentChanged(state, document);
       return {
@@ -311,11 +350,17 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
               historyFuture: [],
             }
           : {}),
-        selectedElementId:
-          next.selectedElementId &&
-          findElementById(elements, next.selectedElementId)
-            ? next.selectedElementId
-            : null,
+        selectedElementIds,
+        selectedElementId: primary,
+        selectionAnchorId:
+          "selectionAnchorId" in update
+            ? update.selectionAnchorId
+            : "selectedElementId" in update
+              ? primary
+              : next.selectionAnchorId &&
+                  findElementById(elements, next.selectionAnchorId)
+                ? next.selectionAnchorId
+                : primary,
       };
     });
   return {
@@ -351,10 +396,18 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
               components: before.components,
               activePageId: page.id,
               elements: page.elements,
+              selectedElementIds: state.selectedElementIds.filter((id) =>
+                findElementById(page.elements, id),
+              ),
               selectedElementId:
                 state.selectedElementId &&
                 findElementById(page.elements, state.selectedElementId)
                   ? state.selectedElementId
+                  : null,
+              selectionAnchorId:
+                state.selectionAnchorId &&
+                findElementById(page.elements, state.selectionAnchorId)
+                  ? state.selectionAnchorId
                   : null,
             }
           : changed
@@ -618,6 +671,10 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         canvasConfig: page.canvasConfig,
         selectedElementId:
           page.id === state.activePageId ? state.selectedElementId : null,
+        selectedElementIds:
+          page.id === state.activePageId ? state.selectedElementIds : [],
+        selectionAnchorId:
+          page.id === state.activePageId ? state.selectionAnchorId : null,
         animationReplay: null,
       });
     },
@@ -773,18 +830,12 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         set({ canvasBackground: color });
     },
     selectedElementId: null,
+    selectedElementIds: [],
+    selectionAnchorId: null,
     activeTool: "select",
     tab: "pages",
     canvasConfig: { zoom: 1, pan: { x: 0, y: 0 } },
-    setElements: (elements) =>
-      set((state) => ({
-        elements,
-        selectedElementId:
-          state.selectedElementId &&
-          findElementById(elements, state.selectedElementId)
-            ? state.selectedElementId
-            : null,
-      })),
+    setElements: (elements) => set({ elements }),
     addElement: (parentId, type, position) => {
       if (!Number.isFinite(position.x) || !Number.isFinite(position.y))
         return null;
@@ -1060,20 +1111,92 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
       set((state) => {
         const element = findElementById(state.elements, id);
         if (!element) return state;
-        const removesSelection =
-          state.selectedElementId !== null &&
-          (state.selectedElementId === id ||
-            !!findElementById(element.children, state.selectedElementId));
-        return {
-          elements: removeElement(state.elements, id),
-          selectedElementId: removesSelection ? null : state.selectedElementId,
-        };
+        return { elements: removeElement(state.elements, id) };
       }),
     setSelectedElementId: (id) =>
       set((state) => ({
         selectedElementId:
           id === null || findElementById(state.elements, id) ? id : null,
       })),
+    setSelectedElementIds: (ids, anchor) =>
+      set((state) =>
+        state.isPreviewMode
+          ? state
+          : {
+              selectedElementIds: ids,
+              selectedElementId: ids.at(-1) ?? null,
+              selectionAnchorId:
+                anchor === undefined ? (ids.at(-1) ?? null) : anchor,
+            },
+      ),
+    toggleSelection: (id) => {
+      const state = get();
+      if (!findElementById(state.elements, id)) return;
+      state.setSelectedElementIds(
+        state.selectedElementIds.includes(id)
+          ? state.selectedElementIds.filter((item) => item !== id)
+          : [...state.selectedElementIds, id],
+        id,
+      );
+    },
+    selectRange: (id, order, additive = false) => {
+      const state = get();
+      const anchor = state.selectionAnchorId ?? state.selectedElementId ?? id;
+      state.setSelectedElementIds(
+        [
+          ...(additive ? state.selectedElementIds : []),
+          ...selectionRange(order, anchor, id),
+        ],
+        anchor,
+      );
+    },
+    deleteSelectedElements: () =>
+      set((state) => {
+        if (state.isPreviewMode || !state.selectedElementIds.length)
+          return state;
+        return {
+          elements: selectedRoots(
+            state.elements,
+            state.selectedElementIds,
+          ).reduce(
+            (nodes, node) => removeElement(nodes, node.id),
+            state.elements,
+          ),
+          selectedElementIds: [],
+          selectedElementId: null,
+          selectionAnchorId: null,
+        };
+      }),
+    moveElements: (positions) =>
+      set((state) => {
+        if (
+          state.isPreviewMode ||
+          !positions.length ||
+          positions.some(
+            (p) =>
+              !Number.isFinite(p.left) ||
+              !Number.isFinite(p.top) ||
+              Math.abs(p.left) > 10000000 ||
+              Math.abs(p.top) > 10000000 ||
+              !findElementById(state.elements, p.id),
+          )
+        )
+          return state;
+        return {
+          elements: positions.reduce(
+            (nodes, position) =>
+              updateElement(nodes, position.id, (node) => ({
+                ...node,
+                styles: {
+                  ...node.styles,
+                  left: position.left,
+                  top: position.top,
+                },
+              })),
+            state.elements,
+          ),
+        };
+      }),
     setActiveTool: (activeTool) => set({ activeTool }),
     setTab: (tab) => set({ tab }),
     setPan: (pan) => {

@@ -82,5 +82,7 @@ export interface WorkspaceDocument {
   activePageId: string;
 }
 export interface HistorySnapshot extends WorkspaceDocument {
+  selectedElementIds?: string[];
+  selectionAnchorId?: string | null;
   selectedElementId: string | null;
 }

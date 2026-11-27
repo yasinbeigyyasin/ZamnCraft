@@ -78,7 +78,7 @@ export function EditorShell() {
         if (state.selectedElementId) {
           event.preventDefault();
           const focused = document.activeElement;
-          state.deleteElement(state.selectedElementId);
+          state.deleteSelectedElements();
           requestAnimationFrame(() => {
             if (focused && !focused.isConnected)
               document
@@ -91,7 +91,7 @@ export function EditorShell() {
 
       if (event.key.toLowerCase() === "c") {
         const state = useEditorStore.getState();
-        if (state.selectedElementId) {
+        if (state.selectedElementId && state.selectedElementIds.length === 1) {
           event.preventDefault();
           state.createComponent(state.selectedElementId);
         }

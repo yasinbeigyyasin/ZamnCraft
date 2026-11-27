@@ -14,6 +14,7 @@ import {
   useEditorStore,
   type EditorElement,
 } from "@/store/editor-store";
+import { selectedRoots } from "@/lib/selection";
 import {
   manipulateRect,
   scaleRect,
@@ -25,6 +26,7 @@ import {
 
 type Gesture = {
   mode: "select" | "scale";
+  members: { id: string; left: number; top: number }[];
   source: EditorElement;
   id: string;
   pointerId: number;
@@ -48,7 +50,7 @@ export function useCanvasManipulation(
   const gesture = useRef<Gesture | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
   const [active, setActive] = useState(false);
-  const selectedId = useEditorStore((state) => state.selectedElementId);
+  const selectedIds = useEditorStore((state) => state.selectedElementIds);
   const tool = useEditorStore((state) => state.activeTool);
 
   const finish = useCallback((cancel = false) => {
@@ -67,10 +69,10 @@ export function useCanvasManipulation(
       gesture.current &&
       (suspended ||
         tool !== gesture.current.mode ||
-        selectedId !== gesture.current.id)
+        !selectedIds.includes(gesture.current.id))
     )
       finish(true);
-  }, [suspended, tool, selectedId, finish]);
+  }, [suspended, tool, selectedIds, finish]);
 
   useEffect(() => {
     const cancel = () => finish(true);
@@ -124,6 +126,7 @@ export function useCanvasManipulation(
     const handleName = target.closest<HTMLElement>("[data-resize-handle]")
       ?.dataset.resizeHandle;
     const handle = RESIZE_HANDLES.find((value) => value === handleName) ?? null;
+    if (handle && state.selectedElementIds.length > 1) return;
     const { zoom, pan } = state.canvasConfig;
     const viewportBounds = viewport.getBoundingClientRect();
     const worldRect = (node: HTMLElement): CanvasRect => {
@@ -163,6 +166,34 @@ export function useCanvasManipulation(
     const positioned = getComputedStyle(parent ? node : node.parentElement!);
     gesture.current = {
       mode: state.activeTool,
+      members: selectedRoots(
+        state.elements,
+        state.selectedElementIds.includes(id) ? state.selectedElementIds : [id],
+      ).flatMap((element) => {
+        const memberNode = [
+          ...viewport.querySelectorAll<HTMLElement>("[data-editor-element]"),
+        ].find((node) => node.dataset.editorElement === element.id);
+        if (!memberNode) return [];
+        const parent = memberNode.parentElement?.closest(
+          "[data-editor-element]",
+        );
+        const computed = getComputedStyle(
+          parent ? memberNode : memberNode.parentElement!,
+        );
+        return [
+          {
+            id: element.id,
+            left:
+              typeof element.styles.left === "number"
+                ? element.styles.left
+                : parseFloat(computed.left) || 0,
+            top:
+              typeof element.styles.top === "number"
+                ? element.styles.top
+                : parseFloat(computed.top) || 0,
+          },
+        ];
+      }),
       source: {
         ...element,
         styles: {
@@ -197,7 +228,7 @@ export function useCanvasManipulation(
       },
       moved: false,
     };
-    state.setSelectedElementId(id);
+    if (!state.selectedElementIds.includes(id)) state.setSelectedElementId(id);
     useEditorStore.getState().beginHistory();
     // Capture on the element, not the viewport, so ordinary clicks and double-clicks retain their target.
     node.setPointerCapture(event.pointerId);
@@ -225,6 +256,23 @@ export function useCanvasManipulation(
     suppressClick();
     setActive(true);
     event.preventDefault();
+    // shortcut: group drags translate without snapping; add shared bounds for group resize and snapping.
+    if (
+      !current.handle &&
+      (current.members.length > 1 || current.members[0]?.id !== current.id)
+    ) {
+      const x = (event.clientX - current.start.x) / current.zoom,
+        y = (event.clientY - current.start.y) / current.zoom;
+      useEditorStore.getState().moveElements(
+        current.members.map((member) => ({
+          id: member.id,
+          left: Math.round((member.left + x) * 100) / 100,
+          top: Math.round((member.top + y) * 100) / 100,
+        })),
+      );
+      setGuides([]);
+      return;
+    }
     if (current.mode === "scale" && current.handle) {
       const { rect, factor } = scaleRect(
         current.rect,

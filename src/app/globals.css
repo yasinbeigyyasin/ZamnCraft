@@ -2579,3 +2579,17 @@ textarea.text-control {
   .canvas-tool-status { bottom: 128px; }
   .canvas-pan-hint { display: none; }
 }
+
+.canvas-marquee {
+  position: absolute;
+  border: 1px solid #0099ff;
+  background: #0099ff1f;
+  pointer-events: none;
+  z-index: 12;
+}
+.multi-selection-summary { padding: 20px 16px; color: #999; }
+.multi-selection-summary > svg { color: #0099ff; margin-bottom: 12px; }
+.multi-selection-summary h3 { font-size: 13px; font-weight: 600; color: #eee; margin-bottom: 12px; }
+.multi-selection-summary p { font-size: 11px; line-height: 1.6; margin-bottom: 12px; }
+.multi-selection-summary button { padding: 7px 12px; background: #292929; border: 1px solid #383838; border-radius: 6px; color: #ddd; }
+.multi-selection-summary button:hover { background: #353535; }

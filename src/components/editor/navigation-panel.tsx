@@ -38,8 +38,8 @@ function LayerItem({
   element: EditorElement;
   depth: number;
 }) {
-  const selected = useEditorStore(
-    (state) => state.selectedElementId === element.id,
+  const selected = useEditorStore((state) =>
+    state.selectedElementIds.includes(element.id),
   );
   const select = useEditorStore((state) => state.setSelectedElementId);
   const renameElement = useEditorStore((state) => state.renameElement);
@@ -76,7 +76,30 @@ function LayerItem({
         data-selected={selected}
         data-component={linked}
         style={{ paddingLeft: 4 + depth * 16 }}
-        onClick={() => select(element.id)}
+        onMouseDown={(event) => {
+          if (event.target instanceof HTMLInputElement) return;
+          if (event.shiftKey || event.ctrlKey || event.metaKey)
+            event.preventDefault();
+        }}
+        onClick={(event) => {
+          if (event.target instanceof HTMLInputElement) return;
+          const state = useEditorStore.getState();
+          if (event.shiftKey) {
+            const panel = event.currentTarget.closest('[role="tabpanel"]');
+            const visible = panel
+              ? [...panel.querySelectorAll<HTMLElement>("[data-layer-id]")]
+                  .filter((row) => row.getClientRects().length > 0)
+                  .map((row) => row.dataset.layerId!)
+              : [];
+            state.selectRange(
+              element.id,
+              visible,
+              event.ctrlKey || event.metaKey,
+            );
+          } else if (event.ctrlKey || event.metaKey)
+            state.toggleSelection(element.id);
+          else select(element.id);
+        }}
       >
         {element.children.length > 0 ? (
           <button
@@ -131,7 +154,7 @@ function LayerItem({
           hidden={renaming}
           aria-pressed={selected}
           aria-keyshortcuts="F2"
-          title={`${element.name} — double-click or press F2 to rename`}
+          title={`${element.name} — Shift+click for a range; Ctrl/⌘+click to toggle; double-click or F2 to rename`}
           onDoubleClick={startRename}
           onKeyDown={(event) => {
             if (event.key === "F2") {

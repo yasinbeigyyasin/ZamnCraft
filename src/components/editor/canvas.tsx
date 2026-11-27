@@ -19,6 +19,7 @@ import { PopoverSelect } from "./property-controls";
 import { BREAKPOINTS } from "@/lib/workspace";
 import { IconButton, tools } from "./editor-controls";
 import { NewDesktopDialog } from "./new-desktop-dialog";
+import { useCanvasSelection } from "./use-canvas-selection";
 import { CanvasTools } from "./canvas-tools";
 import { useVectorDrawing } from "./use-vector-drawing";
 import { isVectorTool } from "@/lib/vector";
@@ -66,6 +67,10 @@ export function Canvas({
   const suppressClick = useCallback(() => {
     suppressClickRef.current = true;
   }, []);
+  const selection = useCanvasSelection(viewportRef, suspended || preview);
+  const selectionCount = useEditorStore(
+    (state) => state.selectedElementIds.length,
+  );
   const manipulation = useCanvasManipulation(
     viewportRef,
     suspended || preview,
@@ -189,6 +194,7 @@ export function Canvas({
       event.preventDefault();
       manipulation.finish(true);
       drawing.cancel();
+      selection.finish(true);
       spaceRef.current = true;
       setSpacePressed(true);
     }
@@ -227,7 +233,8 @@ export function Canvas({
         suspended ||
         dragRef.current ||
         manipulation.gesture.current ||
-        drawing.ref.current
+        drawing.ref.current ||
+        selection.ref.current
       )
         return;
       const rect = viewport!.getBoundingClientRect();
@@ -261,6 +268,7 @@ export function Canvas({
     if (
       suspended ||
       manipulation.gesture.current ||
+      selection.ref.current ||
       (event.target instanceof Element &&
         event.target.closest("[data-canvas-ui]"))
     )
@@ -275,6 +283,10 @@ export function Canvas({
     if (preview && event.button !== 1 && !spaceRef.current) return;
     suppressClickRef.current = false;
     event.currentTarget.focus({ preventScroll: true });
+    if (!spaceRef.current && selection.start(event)) {
+      suppressClickRef.current = true;
+      return;
+    }
     const target = event.target instanceof Element ? event.target : null;
     const blankPan =
       !preview &&
@@ -411,6 +423,7 @@ export function Canvas({
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={(event) => {
+        selection.move(event);
         drawing.move(event);
         manipulation.move(event);
         const drag = dragRef.current;
@@ -424,12 +437,14 @@ export function Canvas({
         }
       }}
       onPointerUp={(event) => {
+        selection.up(event);
         drawing.up(event);
         if (event.pointerId === manipulation.gesture.current?.pointerId)
           manipulation.finish();
         if (event.pointerId === dragRef.current?.pointerId) finishPan();
       }}
       onPointerCancel={(event) => {
+        selection.finish(true);
         drawing.cancel();
         if (event.pointerId === manipulation.gesture.current?.pointerId)
           manipulation.finish(true);
@@ -443,6 +458,8 @@ export function Canvas({
         }
       }}
       onLostPointerCapture={(event) => {
+        if (event.pointerId === selection.ref.current?.pointerId)
+          selection.finish(true);
         if (event.pointerId === drawing.ref.current?.pointerId)
           drawing.cancel();
         if (event.pointerId === manipulation.gesture.current?.pointerId)
@@ -473,6 +490,7 @@ export function Canvas({
           dragRef.current ||
           manipulation.gesture.current ||
           drawing.ref.current ||
+          selection.ref.current ||
           suspended ||
           preview ||
           event.ctrlKey ||
@@ -539,6 +557,7 @@ export function Canvas({
           />
         ))}
       </div>
+      {selection.overlay}
       {!preview && toolbarTarget
         ? createPortal(breakpointControls, toolbarTarget)
         : breakpointControls}
@@ -553,17 +572,21 @@ export function Canvas({
         <span className="status-dot" />
         {preview
           ? "Live preview · Esc to exit"
-          : isPanning
-            ? "Panning"
-            : activeTool === "pen"
-              ? "Pen · click points, drag for curves · Enter to finish · Esc to cancel"
-              : activeTool === "pencil"
-                ? "Pencil · drag to draw freehand · Esc to cancel"
-                : isVectorTool(activeTool)
-                  ? `${activeToolLabel} · drag to draw · Shift to constrain`
-                  : activeTool === "scale"
-                    ? "Scale · drag a handle to scale proportionally"
-                    : `${activeToolLabel} selected`}
+          : selection.ref.current
+            ? "Drag to select layers · Esc to cancel"
+            : isPanning
+              ? "Panning"
+              : selectionCount > 1
+                ? `${selectionCount} layers selected · Ctrl / ⌘ + click to toggle`
+                : activeTool === "pen"
+                  ? "Pen · click points, drag for curves · Enter to finish · Esc to cancel"
+                  : activeTool === "pencil"
+                    ? "Pencil · drag to draw freehand · Esc to cancel"
+                    : isVectorTool(activeTool)
+                      ? `${activeToolLabel} · drag to draw · Shift to constrain`
+                      : activeTool === "scale"
+                        ? "Scale · drag a handle to scale proportionally"
+                        : `${activeToolLabel} selected`}
       </p>
       <p
         id="canvas-navigation-help"

@@ -69,6 +69,7 @@ export function CanvasTools({ disabled }: { disabled: boolean }) {
   const active = useEditorStore((state) => state.activeTool);
   const canCreate = useEditorStore((state) =>
     Boolean(
+      state.selectedElementIds.length === 1 &&
       state.selectedElementId &&
       canCreateComponent(state.elements, state.selectedElementId),
     ),

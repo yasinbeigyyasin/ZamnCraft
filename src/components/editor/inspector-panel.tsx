@@ -1000,6 +1000,9 @@ function CanvasSettings() {
 }
 
 export function InspectorPanel() {
+  const selectionCount = useEditorStore(
+    (state) => state.selectedElementIds.length,
+  );
   useEffect(() => () => useEditorStore.getState().endHistory(), []);
   const selected = useEditorStore((state) =>
     state.selectedElementId
@@ -1029,11 +1032,40 @@ export function InspectorPanel() {
       <div className="panel-heading">
         <h2>{selected ? "Design" : "Canvas"}</h2>
         <span className="panel-heading-hint">
-          {selected ? "Live properties" : "Workspace"}
+          {selectionCount > 1
+            ? "Multiple selection"
+            : selected
+              ? "Live properties"
+              : "Workspace"}
         </span>
       </div>
       <div className="inspector-scroll">
-        {selected ? (
+        {selectionCount > 1 ? (
+          <section
+            className="multi-selection-summary"
+            aria-label="Multiple selection"
+          >
+            <Layers size={22} strokeWidth={1.5} aria-hidden="true" />
+            <h3>{selectionCount} layers selected</h3>
+            <p>
+              Drag a selected layer in Move mode to move the selection. Press
+              Delete to remove it.
+            </p>
+            <p>
+              Ctrl / ⌘ + click toggles a layer. Shift + click selects a range in
+              Layers.
+            </p>
+            <p>Select one layer to edit its properties, resize, or scale.</p>
+            <button
+              type="button"
+              onClick={() =>
+                useEditorStore.getState().setSelectedElementId(null)
+              }
+            >
+              Clear selection
+            </button>
+          </section>
+        ) : selected ? (
           <>
             <ElementHeader key={`name-${selected.id}`} element={selected} />
             <InspectorProperties key={selected.id} element={selected} />

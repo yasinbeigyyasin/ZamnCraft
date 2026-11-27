@@ -49,7 +49,8 @@ const ElementNode = memo(function ElementNodeView({
   const linked = component || Boolean(element.componentId);
   const preview = useEditorStore((state) => state.isPreviewMode);
   const selected = useEditorStore(
-    (state) => !state.isPreviewMode && state.selectedElementId === element.id,
+    (state) =>
+      !state.isPreviewMode && state.selectedElementIds.includes(element.id),
   );
   const zoom = useEditorStore((state) =>
     selected ? state.canvasConfig.zoom : 1,
@@ -57,6 +58,7 @@ const ElementNode = memo(function ElementNodeView({
   const showHandles = useEditorStore(
     (state) =>
       selected &&
+      state.selectedElementIds.length === 1 &&
       (state.activeTool === "select" || state.activeTool === "scale"),
   );
   const nodeRef = useRef<HTMLElement | null>(null);
@@ -321,7 +323,9 @@ export function CanvasRenderer({
   canInteract: () => boolean;
 }) {
   const elements = useEditorStore((state) => state.elements);
-  const selectedElementId = useEditorStore((state) => state.selectedElementId);
+  const selectedElementIds = useEditorStore(
+    (state) => state.selectedElementIds,
+  );
   const zoom = useEditorStore((state) => state.canvasConfig.zoom);
   const preview = useEditorStore((state) => state.isPreviewMode);
 
@@ -351,7 +355,7 @@ export function CanvasRenderer({
       >
         {!preview &&
           element.type === "frame" &&
-          selectedElementId !== element.id && (
+          !selectedElementIds.includes(element.id) && (
             <div
               className="canvas-frame-label"
               style={{ transform: `scale(${1 / zoom})` }}

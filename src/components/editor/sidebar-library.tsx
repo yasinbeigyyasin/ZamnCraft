@@ -211,17 +211,21 @@ export function AssetsPanel() {
     components,
     elements,
     selectedElementId,
+    selectedElementIds,
     createComponent,
     insertComponent,
     detachInstance,
     editMaster,
     pages,
   } = useEditorStore();
-  const owner = selectedElementId
-    ? componentOwner(elements, selectedElementId)
-    : undefined;
+  const owner =
+    selectedElementIds.length === 1 && selectedElementId
+      ? componentOwner(elements, selectedElementId)
+      : undefined;
   const canCreate = Boolean(
-    selectedElementId && canCreateComponent(elements, selectedElementId),
+    selectedElementIds.length === 1 &&
+    selectedElementId &&
+    canCreateComponent(elements, selectedElementId),
   );
   return (
     <>
