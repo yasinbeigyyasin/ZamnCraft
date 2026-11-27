@@ -69,13 +69,13 @@ test("Component tool creates a reusable subtree; Assets inserts unique instances
   await expect(frame).toHaveAttribute("data-component-role", "master");
   await expect(frame.locator(":scope > .canvas-selection-box")).toHaveCSS(
     "border-top-color",
-    "rgb(139, 92, 246)",
+    "rgb(153, 102, 255)",
   );
   await expect(
     frame
       .locator(":scope > .canvas-selection-box .canvas-resize-handle")
       .first(),
-  ).toHaveCSS("border-top-color", "rgb(139, 92, 246)");
+  ).toHaveCSS("border-top-color", "rgb(153, 102, 255)");
   await navigation(page)
     .getByRole("button", { name: "Insert Frame instance", exact: true })
     .click();
@@ -90,9 +90,9 @@ test("Component tool creates a reusable subtree; Assets inserts unique instances
   ).not.toBe(originalText);
   await tab(page, "Layers");
   const row = navigation(page).locator(`[data-layer-id="${id}"]`);
-  await expect(row).toHaveCSS("color", "rgb(139, 92, 246)");
+  await expect(row).toHaveCSS("color", "rgb(153, 102, 255)");
   await row.locator(".layer-name").click();
-  await expect(row).toHaveCSS("background-color", "rgb(139, 92, 246)");
+  await expect(row).toHaveCSS("background-color", "rgb(20, 36, 50)");
   await expect(
     page.getByRole("button", { name: "Component (C)", exact: true }),
   ).toBeDisabled();

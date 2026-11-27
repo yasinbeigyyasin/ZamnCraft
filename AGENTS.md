@@ -45,7 +45,7 @@ This is an instruction-only install; it does not register plugin commands or lif
 
 ## Coding and design workflow
 
-The user prefers the original Step 1 design, restored after rejecting the Unslop redesign. Preserve its compact typography, branding, blue selections, illustrated empty canvas, and original copy. Use Unslop for review only unless the user explicitly approves a visual change; coding cleanup must not redesign the interface.
+The user has explicitly approved matching the original local Figma importer design in `figma/zamncraft-figma-import/code.js`. Use its compact panel geometry, Inter typography, dark surfaces, Z brand initial, subdued selected navigation rows, blue canvas selections, and dialog/control styling as the editor chrome reference. Preserve working features and saved workspace contents; sample layers/pages in the importer are references, not data to inject into user projects. Use Unslop to review fidelity, not to invent another visual direction.
 
 - **Code: Ponytail.** Use the core skill above for implementation, debugging, refactoring, and tests. Default level: **full**.
 - **Design: Unslop.** Read [`.agents/skills/unslop/SKILL.md`](.agents/skills/unslop/SKILL.md) for UI design, polish, and visual reviews. Use its references as needed. Audit the existing screen, propose a product-specific direction, and wait for approval before visual edits unless the user has already authorized proceeding.

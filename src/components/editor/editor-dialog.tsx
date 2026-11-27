@@ -51,6 +51,7 @@ export function EditorDialog({
   return (
     <dialog
       ref={ref}
+      data-kind={kind}
       className={`editor-dialog ${kind === "export" || kind === "figma" ? "export-dialog" : ""}`}
       aria-labelledby="editor-dialog-title"
       onCancel={(event) => {

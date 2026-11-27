@@ -250,7 +250,7 @@ const ElementNode = memo(function ElementNodeView({
           className="canvas-selection-box"
           style={
             {
-              "--selection-color": linked ? "#8B5CF6" : "#0099ff",
+              "--selection-color": linked ? "#9966ff" : "#0099ff",
               left: -dimensions.borderLeft,
               top: -dimensions.borderTop,
               width: dimensions.width * zoom,

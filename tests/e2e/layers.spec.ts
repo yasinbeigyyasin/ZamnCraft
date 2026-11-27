@@ -52,7 +52,7 @@ function layer(page: Page, id: string) {
   return page.locator(`[data-layer-id="${id}"]`);
 }
 
-test("recursive layers indent, show type icons, collapse without hiding canvas content, and share blue selection", async ({
+test("recursive layers indent, show type icons, collapse without hiding canvas content, and share selection", async ({
   page,
 }) => {
   const { panel, desktop, text, frameId, textId } = await setup(page);
@@ -67,7 +67,7 @@ test("recursive layers indent, show type icons, collapse without hiding canvas c
   await expect(
     textRow.getByRole("button", { name: /Collapse|Expand/ }),
   ).toHaveCount(0);
-  await expect(textRow).toHaveCSS("background-color", "rgb(0, 153, 255)");
+  await expect(textRow).toHaveCSS("background-color", "rgb(20, 36, 50)");
   await panel
     .getByRole("button", { name: "Collapse Frame", exact: true })
     .click();

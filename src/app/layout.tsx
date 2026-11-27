@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+const editorFont = localFont({
+  src: "./fonts/inter-latin-variable.woff2",
+  variable: "--font-editor",
+  weight: "100 900",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   description:
@@ -11,7 +19,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
-      <body>{children}</body>
+      <body className={editorFont.variable}>{children}</body>
     </html>
   );
 }

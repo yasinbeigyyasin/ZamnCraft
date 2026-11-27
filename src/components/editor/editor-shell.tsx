@@ -129,9 +129,7 @@ export function EditorShell() {
             aria-label="About ZamnCraft"
             onClick={() => setDialog("project")}
           >
-            <span />
-            <span />
-            <span />
+            <span aria-hidden="true">Z</span>
           </button>
           <span className="toolbar-divider" aria-hidden="true" />
           <IconButton

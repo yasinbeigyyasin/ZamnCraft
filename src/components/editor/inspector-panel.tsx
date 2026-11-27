@@ -694,6 +694,25 @@ function InspectorProperties({ element }: { element?: EditorElement }) {
           clearable
           onChange={(backgroundColor) => patch({ backgroundColor })}
         />
+        <label className="opacity-slider">
+          <span>Opacity</span>
+          <input
+            type="range"
+            aria-label="Opacity slider"
+            style={
+              {
+                "--opacity-progress": `${numeric(styles.opacity, 1) * 100}%`,
+              } as CSSProperties
+            }
+            min={0}
+            max={100}
+            step={1}
+            value={numeric(styles.opacity, 1) * 100}
+            onChange={(event) =>
+              patch({ opacity: event.target.valueAsNumber / 100 })
+            }
+          />
+        </label>
         <div className="field-grid inspector-spaced">
           <NumberField
             label="Opacity"
