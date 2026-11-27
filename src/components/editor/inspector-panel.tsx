@@ -8,6 +8,7 @@ import {
   useEditorStore,
   type EditorElement,
 } from "@/store/editor-store";
+import { DEFAULT_EFFECTS } from "@/lib/element-effects";
 import {
   ArrowDown,
   ArrowLeft,
@@ -18,7 +19,7 @@ import {
   Layers,
   MousePointer2,
   Settings2,
-  Sparkles,
+  RotateCcw,
   Square,
   StretchHorizontal,
 } from "lucide-react";
@@ -178,6 +179,293 @@ function InspectorSection({
       </div>
       {children}
     </section>
+  );
+}
+
+function ShadowField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
+  return (
+    <label className="effect-shadow-label">
+      Shadow CSS
+      <input
+        aria-label="Shadow"
+        value={focused ? draft : value}
+        spellCheck={false}
+        onFocus={() => {
+          setDraft(value);
+          setFocused(true);
+        }}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (CSS.supports("box-shadow", event.target.value))
+            onChange(event.target.value);
+        }}
+        onBlur={() => setFocused(false)}
+      />
+    </label>
+  );
+}
+
+function EffectsInspector({ element }: { element?: EditorElement }) {
+  const effects = element?.effects ?? DEFAULT_EFFECTS;
+  const updateEffects = useEditorStore((state) => state.updateEffects);
+  const replayAnimation = useEditorStore((state) => state.replayAnimation);
+  const id = element?.id ?? "";
+  return (
+    <InspectorSection title="Effects & Animations">
+      <label className="effect-toggle">
+        <input
+          type="checkbox"
+          aria-label="Appear enabled"
+          checked={effects.appear.enabled}
+          onChange={(event) =>
+            updateEffects(id, { appear: { enabled: event.target.checked } })
+          }
+        />
+        Appear
+      </label>
+      <fieldset
+        className="effect-fields"
+        disabled={!effects.appear.enabled}
+        aria-label="Appear settings"
+      >
+        <div className="field-grid">
+          <NumberField
+            label="Appear opacity"
+            displayLabel="Opacity %"
+            value={effects.appear.opacity * 100}
+            min={0}
+            max={100}
+            onChange={(value) =>
+              updateEffects(id, { appear: { opacity: value / 100 } })
+            }
+          />
+          <NumberField
+            label="Appear scale"
+            displayLabel="Scale"
+            value={effects.appear.scale}
+            min={0}
+            max={10}
+            onChange={(scale) => updateEffects(id, { appear: { scale } })}
+          />
+          <NumberField
+            label="Appear X offset"
+            displayLabel="Offset X"
+            value={effects.appear.offsetX}
+            onChange={(offsetX) => updateEffects(id, { appear: { offsetX } })}
+          />
+          <NumberField
+            label="Appear Y offset"
+            displayLabel="Offset Y"
+            value={effects.appear.offsetY}
+            onChange={(offsetY) => updateEffects(id, { appear: { offsetY } })}
+          />
+        </div>
+        <button
+          type="button"
+          className="effect-replay"
+          onClick={() => replayAnimation(id)}
+        >
+          <RotateCcw size={12} aria-hidden="true" />
+          Replay animation
+        </button>
+      </fieldset>
+      <label className="effect-toggle">
+        <input
+          type="checkbox"
+          aria-label="Hover enabled"
+          checked={effects.hover.enabled}
+          onChange={(event) =>
+            updateEffects(id, { hover: { enabled: event.target.checked } })
+          }
+        />
+        Hover
+      </label>
+      <fieldset
+        className="effect-fields"
+        disabled={!effects.hover.enabled}
+        aria-label="Hover settings"
+      >
+        <div className="field-grid">
+          <NumberField
+            label="Hover scale"
+            displayLabel="Scale"
+            value={effects.hover.scale}
+            min={0}
+            max={10}
+            onChange={(scale) => updateEffects(id, { hover: { scale } })}
+          />
+          <NumberField
+            label="Hover rotate"
+            displayLabel="Rotate °"
+            value={effects.hover.rotate}
+            onChange={(rotate) => updateEffects(id, { hover: { rotate } })}
+          />
+        </div>
+        <label className="effect-toggle">
+          <input
+            type="checkbox"
+            aria-label="Hover fill override"
+            checked={effects.hover.fill !== undefined}
+            onChange={(event) =>
+              updateEffects(id, {
+                hover: { fill: event.target.checked ? "#0099ff" : undefined },
+              })
+            }
+          />
+          Fill override
+        </label>
+        {effects.hover.fill !== undefined && (
+          <ColorField
+            label="Hover fill"
+            value={effects.hover.fill}
+            onChange={(fill) => updateEffects(id, { hover: { fill } })}
+          />
+        )}
+        <label className="effect-toggle">
+          <input
+            type="checkbox"
+            aria-label="Hover opacity override"
+            checked={effects.hover.opacity !== undefined}
+            onChange={(event) =>
+              updateEffects(id, {
+                hover: { opacity: event.target.checked ? 1 : undefined },
+              })
+            }
+          />
+          Opacity override
+        </label>
+        {effects.hover.opacity !== undefined && (
+          <NumberField
+            label="Hover opacity"
+            displayLabel="Opacity %"
+            value={effects.hover.opacity * 100}
+            min={0}
+            max={100}
+            onChange={(value) =>
+              updateEffects(id, { hover: { opacity: value / 100 } })
+            }
+          />
+        )}
+      </fieldset>
+      <label className="effect-toggle">
+        <input
+          type="checkbox"
+          aria-label="Press enabled"
+          checked={effects.press.enabled}
+          onChange={(event) =>
+            updateEffects(id, { press: { enabled: event.target.checked } })
+          }
+        />
+        Press
+      </label>
+      <fieldset
+        className="effect-fields"
+        disabled={!effects.press.enabled}
+        aria-label="Press settings"
+      >
+        <NumberField
+          label="Press scale"
+          displayLabel="Scale"
+          value={effects.press.scale}
+          min={0}
+          max={10}
+          onChange={(scale) => updateEffects(id, { press: { scale } })}
+        />
+      </fieldset>
+      <div className="inspector-spaced">
+        <SelectField
+          label="Transition"
+          value={effects.transition.type}
+          options={[
+            ["ease", "Ease"],
+            ["spring", "Spring"],
+          ]}
+          onChange={(value) =>
+            updateEffects(id, {
+              transition: { type: value as "ease" | "spring" },
+            })
+          }
+        />
+        {effects.transition.type === "ease" ? (
+          <NumberField
+            label="Transition duration"
+            displayLabel="Duration (s)"
+            value={effects.transition.duration}
+            min={0}
+            max={10}
+            onChange={(duration) =>
+              updateEffects(id, { transition: { duration } })
+            }
+          />
+        ) : (
+          <div className="field-grid">
+            <NumberField
+              label="Spring stiffness"
+              displayLabel="Stiffness"
+              value={effects.transition.stiffness}
+              min={1}
+              max={1000}
+              onChange={(stiffness) =>
+                updateEffects(id, { transition: { stiffness } })
+              }
+            />
+            <NumberField
+              label="Spring damping"
+              displayLabel="Damping"
+              value={effects.transition.damping}
+              min={1}
+              max={100}
+              onChange={(damping) =>
+                updateEffects(id, { transition: { damping } })
+              }
+            />
+          </div>
+        )}
+      </div>
+      <div className="inspector-spaced">
+        <NumberField
+          label="Blur"
+          displayLabel="Blur (px)"
+          value={effects.blur}
+          min={0}
+          max={100}
+          onChange={(blur) => updateEffects(id, { blur })}
+        />
+      </div>
+      <div className="inspector-spaced">
+        <SelectField
+          label="Shadow preset"
+          value={
+            ["none", "0 4px 12px #00000026", "0 8px 24px #00000040"].includes(
+              effects.shadow,
+            )
+              ? effects.shadow
+              : "custom"
+          }
+          options={[
+            ["none", "None"],
+            ["0 4px 12px #00000026", "Soft"],
+            ["0 8px 24px #00000040", "Strong"],
+            ["custom", "Custom"],
+          ]}
+          onChange={(shadow) => {
+            if (shadow !== "custom") updateEffects(id, { shadow });
+          }}
+        />
+      </div>
+      <ShadowField
+        value={effects.shadow}
+        onChange={(shadow) => updateEffects(id, { shadow })}
+      />
+    </InspectorSection>
   );
 }
 
@@ -512,12 +800,7 @@ function InspectorProperties({ element }: { element?: EditorElement }) {
           />
         </InspectorSection>
       )}
-      <InspectorSection title="Effects">
-        <p className="effects-empty">
-          <Sparkles size={12} aria-hidden="true" />
-          No effects applied
-        </p>
-      </InspectorSection>
+      <EffectsInspector element={element} />
     </fieldset>
   );
 }

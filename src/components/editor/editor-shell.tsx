@@ -9,6 +9,7 @@ import {
   PanelLeft,
   PanelRight,
   Play,
+  Square,
 } from "lucide-react";
 import { Canvas } from "./canvas";
 import { useEditorStore } from "@/store/useEditorStore";
@@ -20,6 +21,8 @@ import { NavigationPanel } from "./navigation-panel";
 export function EditorShell() {
   const activeTool = useEditorStore((state) => state.activeTool);
   const setActiveTool = useEditorStore((state) => state.setActiveTool);
+  const preview = useEditorStore((state) => state.isPreviewMode);
+  const setPreviewMode = useEditorStore((state) => state.setPreviewMode);
   const [dialog, setDialog] = useState<EditorDialogKind | null>(null);
 
   useEffect(() => {
@@ -38,6 +41,15 @@ export function EditorShell() {
             target.closest("input, textarea, select, [role='textbox']")))
       )
         return;
+
+      if (preview) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setPreviewMode(false);
+          document.getElementById("preview-toggle")?.focus();
+        }
+        return;
+      }
 
       if (event.key === "Delete" || event.key === "Backspace") {
         const state = useEditorStore.getState();
@@ -65,10 +77,10 @@ export function EditorShell() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [dialog, setActiveTool]);
+  }, [dialog, setActiveTool, preview, setPreviewMode]);
 
   return (
-    <main className="editor-shell">
+    <main className={`editor-shell ${preview ? "editor-preview" : ""}`}>
       <header className="top-bar">
         <div className="toolbar-project">
           <button
@@ -102,11 +114,12 @@ export function EditorShell() {
             icon={PanelLeft}
             label="Open project navigation"
             className="navigation-toggle"
+            hidden={preview}
             onClick={() => setDialog("navigation")}
             aria-haspopup="dialog"
           />
         </div>
-        <nav className="tool-bar" aria-label="Editor tools">
+        <nav className="tool-bar" aria-label="Editor tools" hidden={preview}>
           {tools.map(({ id, label, shortcut, icon: Icon }) => (
             <button
               key={id}
@@ -156,18 +169,27 @@ export function EditorShell() {
             icon={PanelRight}
             label="Open inspector"
             className="inspector-toggle"
+            hidden={preview}
             onClick={() => setDialog("inspector")}
             aria-haspopup="dialog"
           />
           <IconButton
-            icon={Play}
-            label="Preview site"
-            onClick={() => setDialog("preview")}
-            aria-haspopup="dialog"
+            id="preview-toggle"
+            icon={preview ? Square : Play}
+            label={preview ? "Exit preview" : "Preview site"}
+            aria-pressed={preview}
+            onClick={() => {
+              setPreviewMode(!preview);
+              if (!preview)
+                document
+                  .getElementById("editor-canvas")
+                  ?.focus({ preventScroll: true });
+            }}
           />
           <button
             type="button"
             className="export-button"
+            hidden={preview}
             aria-label="Export Code"
             aria-haspopup="dialog"
             onClick={() => setDialog("export")}
@@ -179,13 +201,21 @@ export function EditorShell() {
       </header>
 
       <div className="editor-workspace">
-        <aside className="navigation-sidebar" aria-label="Project navigation">
+        <aside
+          className="navigation-sidebar"
+          aria-label="Project navigation"
+          hidden={preview}
+        >
           <NavigationPanel onHelp={() => setDialog("help")} />
         </aside>
 
         <Canvas suspended={dialog !== null} />
 
-        <aside className="inspector-sidebar" aria-label="Inspector">
+        <aside
+          className="inspector-sidebar"
+          aria-label="Inspector"
+          hidden={preview}
+        >
           <InspectorPanel />
         </aside>
       </div>

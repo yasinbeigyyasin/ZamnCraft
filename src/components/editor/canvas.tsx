@@ -29,6 +29,7 @@ function isTextInput(target: EventTarget | null) {
 export function Canvas({ suspended = false }: { suspended?: boolean }) {
   const { activeTool, canvasConfig, setPan, setZoom, setSelectedElementId } =
     useEditorStore();
+  const preview = useEditorStore((state) => state.isPreviewMode);
   const { zoom, pan } = canvasConfig;
   const viewportRef = useRef<HTMLElement>(null);
   const spaceRef = useRef(false);
@@ -43,7 +44,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
   }, []);
   const manipulation = useCanvasManipulation(
     viewportRef,
-    suspended,
+    suspended || preview,
     suppressClick,
   );
   const [spacePressed, setSpacePressed] = useState(false);
@@ -52,11 +53,12 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
   const canInteract = useCallback(
     () =>
       !suspended &&
+      !preview &&
       !suppressClickRef.current &&
       !dragRef.current &&
       !manipulation.gesture.current &&
       !spaceRef.current,
-    [suspended, manipulation.gesture],
+    [suspended, preview, manipulation.gesture],
   );
 
   const finishPan = useCallback(() => {
@@ -84,14 +86,24 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     );
     setZoom(nextZoom);
     setPan({
-      x: (width - rootWidth * nextZoom) / 2,
-      y: (height - rootHeight * nextZoom) / 2,
+      x:
+        (width - rootWidth * nextZoom) / 2 -
+        (typeof root.styles.left === "number"
+          ? root.styles.left * nextZoom
+          : 0),
+      y:
+        (height - rootHeight * nextZoom) / 2 -
+        (typeof root.styles.top === "number" ? root.styles.top * nextZoom : 0),
     });
   }, [setPan, setZoom]);
 
   useEffect(() => {
     fitToView();
   }, [fitToView]);
+
+  useEffect(() => {
+    if (preview) fitToView();
+  }, [preview, fitToView]);
 
   useEffect(() => {
     function clearGesture() {
@@ -178,6 +190,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       return;
     if (event.button !== 0 && event.button !== 1) return;
     if (event.button === 0 && isTextInput(event.target)) return;
+    if (preview && event.button !== 1 && !spaceRef.current) return;
     suppressClickRef.current = false;
     event.currentTarget.focus({ preventScroll: true });
     if (event.button !== 1 && !spaceRef.current) {
@@ -208,10 +221,10 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     <section
       id="editor-canvas"
       ref={viewportRef}
-      aria-label="Design canvas"
+      aria-label={preview ? "Live preview" : "Design canvas"}
       aria-describedby="canvas-navigation-help"
       tabIndex={0}
-      className={`canvas canvas-tool-${activeTool} ${spacePressed ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""} ${manipulation.active ? "canvas-manipulating" : ""}`}
+      className={`canvas ${preview ? "canvas-preview" : ""} canvas-tool-${activeTool} ${spacePressed ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""} ${manipulation.active ? "canvas-manipulating" : ""}`}
       style={{
         backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
         backgroundPosition: `${pan.x}px ${pan.y}px`,
@@ -220,6 +233,14 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
             ? `${manipulation.gesture.current.handle}-resize`
             : "move"
           : undefined,
+      }}
+      onPointerDownCapture={() => {
+        if (!preview)
+          viewportRef.current
+            ?.querySelectorAll<HTMLElement>("[data-editor-element]")
+            .forEach((node) =>
+              node.getAnimations().forEach((animation) => animation.cancel()),
+            );
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={(event) => {
@@ -297,7 +318,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           />
         ))}
       </div>
-      <div className="canvas-breadcrumb" data-canvas-ui>
+      <div className="canvas-breadcrumb" data-canvas-ui hidden={preview}>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />
         <span>Home</span>
         <ChevronRight size={12} aria-hidden="true" />
@@ -305,9 +326,18 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       </div>
       <p className="canvas-tool-status" role="status" data-canvas-ui>
         <span className="status-dot" />
-        {isPanning ? "Panning" : `${activeToolLabel} selected`}
+        {preview
+          ? "Live preview · Esc to exit"
+          : isPanning
+            ? "Panning"
+            : `${activeToolLabel} selected`}
       </p>
-      <p id="canvas-navigation-help" className="canvas-pan-hint" data-canvas-ui>
+      <p
+        id="canvas-navigation-help"
+        className="canvas-pan-hint"
+        data-canvas-ui
+        hidden={preview}
+      >
         <kbd>Space</kbd> + drag to pan <span>· Ctrl / ⌘ + scroll to zoom</span>
       </p>
       <div

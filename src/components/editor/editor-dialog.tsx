@@ -1,14 +1,13 @@
 import { useEffect, useRef } from "react";
-import { Code2, File, Globe, X } from "lucide-react";
+import { Code2, File, X } from "lucide-react";
 import { IconButton, tools } from "./editor-controls";
 import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
 
 export type EditorDialogKind =
-  "preview" | "export" | "project" | "help" | "navigation" | "inspector";
+  "export" | "project" | "help" | "navigation" | "inspector";
 
 const titles: Record<EditorDialogKind, string> = {
-  preview: "Site preview",
   export: "Export Code",
   project: "Untitled project",
   help: "Editor shortcuts",
@@ -22,12 +21,6 @@ const emptyStates = {
     heading: "Something great is on its way.",
     description:
       "Your Desktop frame is ready. Code generation will be added in a later step.",
-  },
-  preview: {
-    icon: Globe,
-    heading: "Your Desktop frame is ready.",
-    description:
-      "Live website preview will be added after element editing. For now, explore your frame on the canvas.",
   },
   project: {
     icon: File,
@@ -70,7 +63,7 @@ export function EditorDialog({
   return (
     <dialog
       ref={ref}
-      className={`editor-dialog ${kind === "preview" ? "preview-dialog" : ""}`}
+      className="editor-dialog"
       aria-labelledby="editor-dialog-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -116,7 +109,11 @@ export function EditorDialog({
             typography. In Select mode, drag an element to move it or use its
             eight handles to resize. Edges and centers snap to the parent and
             siblings; hold Alt or Option to bypass snapping. Escape cancels an
-            active drag or resize. Changes apply immediately.
+            active drag or resize. In Effects & Animations, enable appear,
+            hover, or press effects and set their transition. Replay animation
+            tests appear on the editing canvas. Play opens the live preview
+            without editing handles; press Escape or Exit preview to return to
+            your selection and camera. Changes apply immediately.
           </p>
         </div>
       ) : (

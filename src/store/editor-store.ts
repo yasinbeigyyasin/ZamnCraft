@@ -1,5 +1,11 @@
 import { create } from "zustand";
 import type { CSSProperties } from "react";
+import {
+  createDefaultEffects,
+  mergeEffects,
+  type EffectsPatch,
+} from "@/lib/element-effects";
+export type { ElementEffects } from "@/types/editor";
 
 import type {
   CanvasConfig,
@@ -81,6 +87,12 @@ export interface EditorState {
   activeTool: EditorTool;
   tab: SidebarTab;
   canvasConfig: CanvasConfig;
+  isPreviewMode: boolean;
+  previewCanvasConfig: CanvasConfig | null;
+  animationReplay: { elementId: string; sequence: number } | null;
+  setPreviewMode: (enabled: boolean) => void;
+  replayAnimation: (id: string) => void;
+  updateEffects: (id: string, patch: EffectsPatch) => void;
   setElements: (elements: EditorElement[]) => void;
   addElement: (
     parentId: string | null,
@@ -123,9 +135,54 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         backgroundColor: "#ffffff",
         color: "#111111",
       },
+      effects: createDefaultEffects(),
       animations: {},
     },
   ],
+  isPreviewMode: false,
+  previewCanvasConfig: null,
+  animationReplay: null,
+  setPreviewMode: (enabled) =>
+    set((state) => {
+      if (state.isPreviewMode === enabled) return state;
+      return enabled
+        ? {
+            isPreviewMode: true,
+            previewCanvasConfig: {
+              zoom: state.canvasConfig.zoom,
+              pan: { ...state.canvasConfig.pan },
+            },
+          }
+        : {
+            isPreviewMode: false,
+            canvasConfig: state.previewCanvasConfig ?? state.canvasConfig,
+            previewCanvasConfig: null,
+          };
+    }),
+  replayAnimation: (id) =>
+    set((state) => {
+      const element = findElementById(state.elements, id);
+      if (!element?.effects?.appear.enabled) return state;
+      return {
+        animationReplay: {
+          elementId: id,
+          sequence: (state.animationReplay?.sequence ?? 0) + 1,
+        },
+      };
+    }),
+  updateEffects: (id, patch) =>
+    set((state) => {
+      const element = findElementById(state.elements, id);
+      if (!element) return state;
+      const effects = mergeEffects(element.effects, patch);
+      if (!effects) return state;
+      return {
+        elements: updateElement(state.elements, id, (element) => ({
+          ...element,
+          effects,
+        })),
+      };
+    }),
   selectedElementId: null,
   activeTool: "select",
   tab: "pages",
@@ -182,6 +239,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
               }),
         },
         ...(type === "text" ? { content: "Double click to edit" } : {}),
+        effects: createDefaultEffects(),
         animations: {},
       };
       createdId = element.id;

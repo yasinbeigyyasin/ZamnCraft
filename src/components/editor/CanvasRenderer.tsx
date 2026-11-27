@@ -12,6 +12,7 @@ import {
 } from "react";
 import { Monitor } from "lucide-react";
 import { RESIZE_HANDLES } from "@/lib/canvas-geometry";
+import { useElementEffects } from "./use-element-effects";
 import { useEditorStore, type EditorElement } from "@/store/useEditorStore";
 
 function pastePlainText(event: ClipboardEvent<HTMLSpanElement>) {
@@ -42,8 +43,9 @@ const ElementNode = memo(function ElementNodeView({
   root?: boolean;
   parentStyles?: CSSProperties;
 }) {
+  const preview = useEditorStore((state) => state.isPreviewMode);
   const selected = useEditorStore(
-    (state) => state.selectedElementId === element.id,
+    (state) => !state.isPreviewMode && state.selectedElementId === element.id,
   );
   const zoom = useEditorStore((state) =>
     selected ? state.canvasConfig.zoom : 1,
@@ -52,6 +54,7 @@ const ElementNode = memo(function ElementNodeView({
     (state) => selected && state.activeTool === "select",
   );
   const nodeRef = useRef<HTMLElement | null>(null);
+  const motion = useElementEffects(nodeRef, element, preview);
   const textRef = useRef<HTMLSpanElement>(null);
   const cancelEditRef = useRef(false);
   const [editing, setEditing] = useState(false);
@@ -151,15 +154,17 @@ const ElementNode = memo(function ElementNodeView({
       className="canvas-element"
       style={{
         ...element.styles,
+        ...motion.visualStyles,
         position: element.styles.position || "relative",
         ...(root ? { position: "relative", left: 0, top: 0 } : {}),
         ...(fillsStack && element.styles.position !== "absolute"
           ? { flexGrow: 1, flexShrink: 1, flexBasis: 0 }
           : {}),
       }}
+      {...motion.handlers}
       aria-label={element.name}
       {...(element.type === "button"
-        ? { type: "button" as const, tabIndex: -1 }
+        ? { type: "button" as const, tabIndex: preview ? 0 : -1 }
         : {})}
       onClick={handleClick}
       onDoubleClick={(event) => {
@@ -295,6 +300,7 @@ export function CanvasRenderer({
   const elements = useEditorStore((state) => state.elements);
   const selectedElementId = useEditorStore((state) => state.selectedElementId);
   const zoom = useEditorStore((state) => state.canvasConfig.zoom);
+  const preview = useEditorStore((state) => state.isPreviewMode);
 
   return elements.map((element) => (
     <div
@@ -317,18 +323,20 @@ export function CanvasRenderer({
               : undefined,
       }}
     >
-      {element.type === "frame" && selectedElementId !== element.id && (
-        <div
-          className="canvas-frame-label"
-          style={{ transform: `scale(${1 / zoom})` }}
-        >
-          <Monitor size={12} aria-hidden="true" />
-          <span>{element.name}</span>
-          <span>
-            {element.styles.width} × {element.styles.height}
-          </span>
-        </div>
-      )}
+      {!preview &&
+        element.type === "frame" &&
+        selectedElementId !== element.id && (
+          <div
+            className="canvas-frame-label"
+            style={{ transform: `scale(${1 / zoom})` }}
+          >
+            <Monitor size={12} aria-hidden="true" />
+            <span>{element.name}</span>
+            <span>
+              {element.styles.width} × {element.styles.height}
+            </span>
+          </div>
+        )}
       <ElementNode element={element} canInteract={canInteract} root />
     </div>
   ));

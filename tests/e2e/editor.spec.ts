@@ -151,9 +151,9 @@ test("dialogs keep the page inert, suspend shortcuts, close with Escape, and res
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Preview site" }).click();
   await expect(
-    page.getByRole("dialog", { name: "Site preview" }),
-  ).toContainText("Your Desktop frame is ready.");
-  await page.getByRole("button", { name: "Back to editor" }).click();
+    page.getByRole("region", { name: "Live preview", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Exit preview", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Preview site" }),
   ).toBeFocused();

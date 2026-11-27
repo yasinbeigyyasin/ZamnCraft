@@ -1,5 +1,31 @@
 import type { CSSProperties } from "react";
 
+export interface ElementEffects {
+  appear: {
+    enabled: boolean;
+    opacity: number;
+    offsetX: number;
+    offsetY: number;
+    scale: number;
+  };
+  hover: {
+    enabled: boolean;
+    scale: number;
+    rotate: number;
+    fill?: string;
+    opacity?: number;
+  };
+  press: { enabled: boolean; scale: number };
+  transition: {
+    type: "spring" | "ease";
+    duration: number;
+    stiffness: number;
+    damping: number;
+  };
+  blur: number;
+  shadow: string;
+}
+
 export interface EditorElement {
   id: string;
   name: string;
@@ -9,8 +35,9 @@ export interface EditorElement {
   content?: string;
   // Preserve free-layout offsets while a parent arranges children in flow.
   freePosition?: Pick<CSSProperties, "position" | "left" | "top">;
-  // Animation data stays open until the animation schema is defined.
-  animations: any;
+  // Optional for older document trees; new elements receive independent defaults.
+  effects?: ElementEffects;
+  animations: Record<string, unknown>;
 }
 
 export type EditorTool = "select" | "frame" | "text";

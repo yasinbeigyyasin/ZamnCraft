@@ -1,5 +1,6 @@
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
+import { createDefaultEffects } from "../src/lib/element-effects";
 import {
   findElementById,
   useEditorStore,
@@ -29,6 +30,7 @@ test("editor starts with a white 1200 × 800 Desktop frame and independent UI st
       backgroundColor: "#ffffff",
       color: "#111111",
     },
+    effects: createDefaultEffects(),
     animations: {},
   });
 });

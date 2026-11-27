@@ -48,13 +48,13 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Steps 3–6: canvas, layers, Inspector, and direct manipulation
+## Steps 3–7: canvas, layers, Inspector, manipulation, and effects
 
 The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
 ### State and data
 
-`EditorElement` describes a recursive tree with `id`, `name`, `type` (`frame`, `text`, or `button`), `children`, React `CSSProperties`, an optional `content` string, and an open `animations` payload. The default tree contains one Desktop root frame.
+`EditorElement` describes a recursive tree with `id`, `name`, `type` (`frame`, `text`, or `button`), `children`, React `CSSProperties`, an optional `content` string, and typed `effects` (appear, hover, press, transition, blur, and shadow). Older trees without effects receive defaults when edited; new elements own independent defaults. The legacy `animations` record is retained for compatibility. The default tree contains one Desktop root frame.
 
 `useEditorStore` owns `elements`, `selectedElementId`, `activeTool` (`select`, `frame`, or `text`), `canvasConfig`, and the existing navigation tab. Canvas zoom is a **scale factor** (`1 = 100%`), bounded to 0.25–2. Pan uses viewport pixels and has no positional boundary. `addElement` immutably appends a child to a frame, or a root element when its parent is null, selects it, and returns to Select. `updateText` stores plain text without changing the element name. Invalid numeric values are ignored. Changing or replacing the tree clears selections that no longer exist.
 
@@ -74,7 +74,7 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 
 Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
 
-Preview and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Position and size can be changed through the Inspector or directly on the canvas.
+Play opens a live interactive preview. Code generation is still unavailable. State is session-only, with no backend, undo history, or persistence. Position and size can be changed through the Inspector or directly on the canvas.
 
 ## Interactive Layers panel
 
@@ -111,9 +111,23 @@ Effects editing, persistence, and undo remain out of scope. Refresh still resets
 
 Direct manipulation uses the existing atomic `updateStyles` action; guides and gesture snapshots stay transient rather than becoming document state. No new dependency is required. Gesture cancellation is not an undo history: after release, edits remain session-only with no general undo or persistence.
 
+## Effects & Animations and live preview
+
+Select any element and scroll to **Effects & Animations** in the Inspector. Enable each interaction independently:
+
+- **Appear:** initial opacity (0–100%), X/Y offset in pixels, and scale. **Replay animation** runs it directly on the editing canvas without writing transforms to document styles. A new replay restarts it; interacting with the canvas clears it before manipulation.
+- **Hover:** scale, rotation in degrees, optional fill and opacity overrides. Disabling an override restores the element's own style.
+- **Press:** scale while a primary pointer is held. Release, pointer cancellation, leaving the element, or window blur resets it. Rendered button elements also respond to Enter/Space.
+- **Transition:** Ease uses duration in seconds (0–10). Spring uses stiffness (1–1000) and damping (1–100), with a sampled, unit-mass damped spring curve and native CSS `linear()` easing. Spring settling is capped at 10 seconds; browsers without `linear()` use ease-out instead.
+- **Blur and shadow:** pixel blur plus None/Soft/Strong shadow presets or a custom CSS box-shadow. Invalid drafts leave the last valid value unchanged.
+
+**Play** toggles a full-width live view of the same recursive document. Appear runs on entry; hover and press work only in preview. Selection labels, handles, sidebars, and insertion tools are hidden, and editing shortcuts and double-click editing are suspended. Pan/zoom and fit controls remain available. **Exit preview** or Escape restores the exact editing camera and selection; no document geometry is changed. Narrow screens can configure effects through the existing Inspector dialog.
+
+Animations use the browser's Web Animations API with no animation dependency. Reduced-motion preference skips appear offsets/fades and hover/press transforms, retaining immediate color/opacity feedback. Active animations are cancelled on exit and unmount.
+
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–6 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–7 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
@@ -121,6 +135,8 @@ Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned ski
 - `src/components/editor/canvas.tsx`: world transform, gesture guards, pan, zoom, and fit view.
 - `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, eight resize handles, and inline text editing.
 - `src/components/editor/use-canvas-manipulation.ts`: pointer capture, movement, resizing, snap targets, and cancellation.
+- `src/lib/element-effects.ts`: independent effect defaults, validated patches, and spring sampling.
+- `src/components/editor/use-element-effects.ts`: native appear/hover/press lifecycle and reduced-motion behavior.
 - `src/lib/canvas-geometry.ts`: pure resize geometry and alignment snapping.
 - `src/types/editor.ts`: element, tool, and canvas data types.
 - `src/components/editor/navigation-panel.tsx`: tabs, recursive disclosures, selection, inline renaming, and trash controls.

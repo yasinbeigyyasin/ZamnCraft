@@ -962,13 +962,6 @@ kbd {
 .shortcut-list kbd {
   margin-left: auto;
 }
-.preview-dialog {
-  width: min(800px, calc(100vw - 48px));
-}
-.preview-dialog .dialog-empty {
-  padding-block: 80px;
-  background: #0a0a0a;
-}
 .editor-dialog .navigation-panel,
 .editor-dialog .inspector-panel {
   height: min(640px, calc(100dvh - 112px));
@@ -1183,4 +1176,69 @@ kbd {
 .canvas.canvas-manipulating *,
 .canvas.canvas-pan-ready * {
   cursor: inherit !important;
+}
+
+.effect-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 8px;
+  color: #bbb;
+}
+.effect-toggle input {
+  accent-color: #0099ff;
+}
+.effect-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid #222;
+}
+.effect-fields:disabled {
+  opacity: 0.45;
+}
+.effect-replay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid #303030;
+  border-radius: 4px;
+  color: #ccc;
+}
+.effect-replay:not(:disabled):hover {
+  background: #252525;
+}
+.effect-shadow-label {
+  display: block;
+  color: #aaa;
+}
+.effect-shadow-label input {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background: #1b1b1b;
+}
+.canvas.canvas-preview {
+  background-image: none;
+  cursor: default;
+}
+.canvas-preview .canvas-element {
+  cursor: default;
+}
+.canvas-preview [data-element-type="button"] {
+  cursor: pointer;
+}
+.canvas-preview .canvas-artboard > .canvas-element {
+  box-shadow: none;
+}
+#preview-toggle[aria-pressed="true"] {
+  background: #122c40;
+  color: #0099ff;
 }
