@@ -2,13 +2,12 @@
 
 import { useId, useRef, useState } from "react";
 import {
+  Component,
   ChevronDown,
   ChevronRight,
   CircleHelp,
   Frame,
-  Home,
   Layers,
-  LayoutTemplate,
   Square,
   Type,
   Trash2,
@@ -19,6 +18,7 @@ import {
   type SidebarTab,
 } from "@/store/useEditorStore";
 import { IconButton } from "./editor-controls";
+import { PagesPanel, AssetsPanel } from "./sidebar-library";
 
 const tabs: SidebarTab[] = ["pages", "layers", "assets"];
 
@@ -32,7 +32,9 @@ function countElements(elements: EditorElement[]): number {
 function LayerItem({
   element,
   depth,
+  component = false,
 }: {
+  component?: boolean;
   element: EditorElement;
   depth: number;
 }) {
@@ -48,8 +50,14 @@ function LayerItem({
   const cancelRename = useRef(false);
   const selectRef = useRef<HTMLButtonElement>(null);
   const childrenId = useId();
-  const Icon =
-    element.type === "text" ? Type : element.type === "button" ? Square : Frame;
+  const linked = component || Boolean(element.componentId);
+  const Icon = element.componentId
+    ? Component
+    : element.type === "text"
+      ? Type
+      : element.type === "button"
+        ? Square
+        : Frame;
 
   function startRename() {
     select(element.id);
@@ -64,6 +72,7 @@ function LayerItem({
         className="layer-row"
         data-layer-id={element.id}
         data-selected={selected}
+        data-component={linked}
         style={{ paddingLeft: 4 + depth * 16 }}
         onClick={() => select(element.id)}
       >
@@ -149,7 +158,11 @@ function LayerItem({
       </div>
       {element.children.length > 0 && (
         <div id={childrenId} hidden={!expanded}>
-          <ElementLayers elements={element.children} depth={depth + 1} />
+          <ElementLayers
+            elements={element.children}
+            depth={depth + 1}
+            component={linked}
+          />
         </div>
       )}
     </li>
@@ -159,7 +172,9 @@ function LayerItem({
 function ElementLayers({
   elements,
   depth = 0,
+  component = false,
 }: {
+  component?: boolean;
   elements: EditorElement[];
   depth?: number;
 }) {
@@ -169,7 +184,12 @@ function ElementLayers({
       aria-label={depth === 0 ? "Page layers" : "Child layers"}
     >
       {elements.map((element) => (
-        <LayerItem key={element.id} element={element} depth={depth} />
+        <LayerItem
+          key={element.id}
+          element={element}
+          depth={depth}
+          component={component}
+        />
       ))}
     </ul>
   );
@@ -179,6 +199,9 @@ export function NavigationPanel({ onHelp }: { onHelp: () => void }) {
   const tab = useEditorStore((state) => state.tab);
   const setTab = useEditorStore((state) => state.setTab);
   const id = useId();
+  const pages = useEditorStore((state) => state.pages);
+  const components = useEditorStore((state) => state.components);
+  const activePageId = useEditorStore((state) => state.activePageId);
   const elements = useEditorStore((state) => state.elements);
 
   return (
@@ -233,44 +256,24 @@ export function NavigationPanel({ onHelp }: { onHelp: () => void }) {
             </span>
             <span>
               {item === "pages"
-                ? "1"
+                ? pages.length
                 : item === "layers"
                   ? countElements(elements)
-                  : "0"}
+                  : components.length}
             </span>
           </div>
           {item === "pages" ? (
-            <>
-              <div className="page-row" aria-current="page">
-                <Home size={13} strokeWidth={1.5} aria-hidden="true" />
-                <span>Home</span>
-                <span className="page-path">/</span>
-              </div>
-              <p className="sidebar-note">
-                Your site starts here.
-                <br />A little blank space. A lot of possibility.
-              </p>
-            </>
-          ) : item === "layers" && elements.length > 0 ? (
-            <ElementLayers elements={elements} />
+            <PagesPanel />
+          ) : item === "assets" ? (
+            <AssetsPanel />
+          ) : elements.length > 0 ? (
+            <ElementLayers key={activePageId} elements={elements} />
           ) : (
             <div className="empty-panel">
-              {item === "layers" ? (
-                <Layers size={24} strokeWidth={1.5} aria-hidden="true" />
-              ) : (
-                <LayoutTemplate
-                  size={24}
-                  strokeWidth={1.5}
-                  aria-hidden="true"
-                />
-              )}
-              <p>
-                {item === "layers" ? "No layers yet" : "A home for your assets"}
-              </p>
+              <Layers size={24} strokeWidth={1.5} aria-hidden="true" />
+              <p>No layers yet</p>
               <p className="muted">
-                {item === "layers"
-                  ? "Your page structure will appear here as you build."
-                  : "Components and uploads will live here when you add them."}
+                Your page structure will appear here as you build.
               </p>
             </div>
           )}

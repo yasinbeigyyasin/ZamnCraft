@@ -33,6 +33,9 @@ export interface EditorElement {
   children: EditorElement[];
   styles: CSSProperties;
   content?: string;
+  componentId?: string;
+  componentRole?: "master" | "instance";
+  componentSourceId?: string;
   // Preserve free-layout offsets while a parent arranges children in flow.
   freePosition?: Pick<CSSProperties, "position" | "left" | "top">;
   // Optional for older document trees; new elements receive independent defaults.
@@ -44,3 +47,17 @@ export type EditorTool = "select" | "frame" | "text";
 export type SidebarTab = "pages" | "layers" | "assets";
 export type Point = { x: number; y: number };
 export type CanvasConfig = { zoom: number; pan: Point };
+
+export interface EditorPage {
+  id: string;
+  name: string;
+  path: string;
+  elements: EditorElement[];
+  canvasConfig: CanvasConfig;
+}
+
+export interface MasterComponent {
+  id: string;
+  name: string;
+  element: EditorElement;
+}

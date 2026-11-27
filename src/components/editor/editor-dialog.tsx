@@ -113,7 +113,11 @@ export function EditorDialog({
             hover, or press effects and set their transition. Replay animation
             tests appear on the editing canvas. Play opens the live preview
             without editing handles; press Escape or Exit preview to return to
-            your selection and camera. Changes apply immediately.
+            your selection and camera. Press C or use Create Component in Assets
+            to turn a selected subtree into a master. Insert linked instances
+            from Assets; edits to the master update them across pages. Detach an
+            instance to edit it independently. Pages supports adding, renaming,
+            deleting, and switching page canvases. Changes apply immediately.
           </p>
         </div>
       ) : (

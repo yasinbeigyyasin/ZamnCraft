@@ -6,11 +6,13 @@ import {
   Check,
   ChevronDown,
   Code2,
+  Component,
   PanelLeft,
   PanelRight,
   Play,
   Square,
 } from "lucide-react";
+import { canCreateComponent } from "@/lib/editor-components";
 import { Canvas } from "./canvas";
 import { useEditorStore } from "@/store/useEditorStore";
 import { IconButton, tools, upcomingTools } from "./editor-controls";
@@ -23,6 +25,12 @@ export function EditorShell() {
   const setActiveTool = useEditorStore((state) => state.setActiveTool);
   const preview = useEditorStore((state) => state.isPreviewMode);
   const setPreviewMode = useEditorStore((state) => state.setPreviewMode);
+  const canCreate = useEditorStore((state) =>
+    Boolean(
+      state.selectedElementId &&
+      canCreateComponent(state.elements, state.selectedElementId),
+    ),
+  );
   const [dialog, setDialog] = useState<EditorDialogKind | null>(null);
 
   useEffect(() => {
@@ -63,6 +71,15 @@ export function EditorShell() {
                 .getElementById("editor-canvas")
                 ?.focus({ preventScroll: true });
           });
+        }
+        return;
+      }
+
+      if (event.key.toLowerCase() === "c") {
+        const state = useEditorStore.getState();
+        if (state.selectedElementId) {
+          event.preventDefault();
+          state.createComponent(state.selectedElementId);
         }
         return;
       }
@@ -159,6 +176,21 @@ export function EditorShell() {
               <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
             </button>
           ))}
+          <button
+            type="button"
+            className="tool-button component-tool"
+            aria-label="Component (C)"
+            aria-keyshortcuts="c"
+            disabled={!canCreate}
+            title="Create Component (C) — select an independent subtree"
+            onClick={() => {
+              const state = useEditorStore.getState();
+              if (state.selectedElementId)
+                state.createComponent(state.selectedElementId);
+            }}
+          >
+            <Component size={17} strokeWidth={1.7} aria-hidden="true" />
+          </button>
         </nav>
         <div className="toolbar-actions">
           <span className="avatar" title="Your workspace">

@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react";
 import {
-  Component,
   Frame,
   Layers,
   MousePointer2,
@@ -20,10 +19,7 @@ export const tools: {
   { id: "text", label: "Text", shortcut: "T", icon: Type },
 ];
 
-export const upcomingTools = [
-  { id: "stack", label: "Stack", icon: Layers },
-  { id: "component", label: "Component", icon: Component },
-];
+export const upcomingTools = [{ id: "stack", label: "Stack", icon: Layers }];
 
 export function IconButton({
   icon: Icon,

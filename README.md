@@ -48,7 +48,7 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Steps 3–7: canvas, layers, Inspector, manipulation, and effects
+## Steps 3–8: canvas, layers, Inspector, components, and pages
 
 The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
@@ -68,7 +68,7 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 - **Add a Frame:** choose Frame (or press F), then click on the blank canvas or inside any existing frame. A gray 200 × 200 frame is inserted at the clicked world or parent-local position, accounting for pan and zoom.
 - **Add Text:** choose Text (or press T), then click on the blank canvas or inside a frame. Root text is white against the dark canvas; text inside frames is dark. The new text is `Double click to edit`. Insertion selects the new child and returns to Select.
 - **Edit Text:** double-click it, then type. Enter or clicking away saves; Shift+Enter inserts a line break; Escape discards the draft. Pasted content is inserted as plain text, never HTML. Empty text remains selectable.
-- **Tools:** V / F / T select the supported tools. Stack and Component stay visible but disabled.
+- **Tools:** V / F / T select the supported tools. C creates a reusable component from the selection. Stack creation remains disabled in the toolbar; use the Inspector’s Stack layout.
 
 `CanvasRenderer.tsx` walks the frame/text/button tree recursively. Each element stops click propagation so its parent is not selected accidentally. A selected element gets a screen-sized 2px blue border and a small blue name/dimensions label. ResizeObserver keeps the dimensions accurate as text changes. Chrome, zoom controls, and breadcrumbs stay outside the transformed world. Grid spacing and origin follow the world transform. Text and button nodes use `content` when present, falling back to their name.
 
@@ -125,9 +125,29 @@ Select any element and scroll to **Effects & Animations** in the Inspector. Enab
 
 Animations use the browser's Web Animations API with no animation dependency. Reduced-motion preference skips appear offsets/fades and hover/press transforms, retaining immediate color/opacity feedback. Active animations are cancelled on exit and unmount.
 
+## Reusable components and Assets
+
+Select a Frame (including Stack/Grid layouts) or Text, then click the diamond **Component (C)** tool, press **C**, or choose **Create Component** in Assets. The selected subtree becomes the master, and Assets opens with a saved library entry. Masters, instances, and their descendant layers use component purple (`#8B5CF6`) for layer highlights, selection borders, labels, and handles; ordinary elements stay blue.
+
+- **Insert** creates a linked instance with unique IDs. It goes inside a selected independent frame, otherwise the first independent root frame, or onto the root canvas if there is no such frame. Stack/Grid parents keep instances in flow.
+- **Edit master** opens the master's page and selects it. Changes to its styles, sizing, layout, text, effects, name, and child structure automatically propagate to instances on every page. Surviving descendants keep stable instance IDs. Each instance keeps its own root position.
+- **Detach instance** in Assets removes the link from the selected instance (or from the owner of a selected instance descendant). Its current appearance and structure become ordinary editable elements, unaffected by future master changes.
+- Linked instances can be edited, but subsequent master updates replace their styles and structure, except root placement. Detach first for permanent independent edits; there is no per-property override system.
+- Nested reusable component definitions are not supported: conversion is disabled when the subtree is already linked or contains another component. Detach linked subtrees first. Saved components survive master or master-page deletion and remain insertable as their last saved snapshot; Edit master is disabled if its source was deleted.
+
+The project-wide `components` registry stores master snapshots. `componentId`/`componentRole` identify roots and `componentSourceId` maps instance nodes to master nodes. The store reconciles master updates and all page snapshots atomically, preserving the existing active `elements` API. No new dependencies were added.
+
+## Multi-page management
+
+In **Pages**, click **Add page**, enter a unique path such as `/about` or `/contact`, and save. Paths are normalized to lowercase with a leading slash; letters, numbers, hyphens, and nested path segments are supported. The path also names the page (`/` is Home). Use the pencil button (or double-click/F2 on a page name) to rename it. Invalid or duplicate paths show an inline error without modifying the page.
+
+Each page owns an independent root element tree and editing camera; new pages begin with a 1200 × 800 Desktop. Switching pages clears stale selection and replay state and restores that page's camera. Breadcrumbs and Layers follow the active page, and Play previews only that page. The trash button asks for confirmation before deleting a page and its canvas. At least one page is retained. Components are shared across pages, not duplicated into separate registries.
+
+Pages and Assets remain accessible through the navigation dialog on narrow screens. Page/component management is suspended in preview. This is editor-only page management, not published routes or cross-page link navigation. All pages and components are still session-only: refresh clears them; there is no persistence or undo history yet.
+
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–7 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–8 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
@@ -135,6 +155,8 @@ Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned ski
 - `src/components/editor/canvas.tsx`: world transform, gesture guards, pan, zoom, and fit view.
 - `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, eight resize handles, and inline text editing.
 - `src/components/editor/use-canvas-manipulation.ts`: pointer capture, movement, resizing, snap targets, and cancellation.
+- `src/lib/editor-components.ts`: component ownership, instance cloning, detachment, and propagation.
+- `src/components/editor/sidebar-library.tsx`: Pages CRUD and Assets management.
 - `src/lib/element-effects.ts`: independent effect defaults, validated patches, and spring sampling.
 - `src/components/editor/use-element-effects.ts`: native appear/hover/press lifecycle and reduced-motion behavior.
 - `src/lib/canvas-geometry.ts`: pure resize geometry and alignment snapping.

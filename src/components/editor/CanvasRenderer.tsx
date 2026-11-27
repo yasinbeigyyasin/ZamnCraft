@@ -37,12 +37,15 @@ const ElementNode = memo(function ElementNodeView({
   canInteract,
   root = false,
   parentStyles,
+  component = false,
 }: {
   element: EditorElement;
   canInteract: () => boolean;
   root?: boolean;
   parentStyles?: CSSProperties;
+  component?: boolean;
 }) {
+  const linked = component || Boolean(element.componentId);
   const preview = useEditorStore((state) => state.isPreviewMode);
   const selected = useEditorStore(
     (state) => !state.isPreviewMode && state.selectedElementId === element.id,
@@ -151,6 +154,8 @@ const ElementNode = memo(function ElementNodeView({
       data-editor-element={element.id}
       data-element-type={element.type}
       data-selected={selected}
+      data-component={linked}
+      data-component-role={element.componentRole}
       className="canvas-element"
       style={{
         ...element.styles,
@@ -235,19 +240,23 @@ const ElementNode = memo(function ElementNodeView({
           element={child}
           canInteract={canInteract}
           parentStyles={element.styles}
+          component={linked}
         />
       ))}
       {/* Counter-scaling keeps selection borders and labels screen-sized. */}
       {selected && (
         <span
           className="canvas-selection-box"
-          style={{
-            left: -dimensions.borderLeft,
-            top: -dimensions.borderTop,
-            width: dimensions.width * zoom,
-            height: dimensions.height * zoom,
-            transform: `scale(${1 / zoom})`,
-          }}
+          style={
+            {
+              "--selection-color": linked ? "#8B5CF6" : "#0099ff",
+              left: -dimensions.borderLeft,
+              top: -dimensions.borderTop,
+              width: dimensions.width * zoom,
+              height: dimensions.height * zoom,
+              transform: `scale(${1 / zoom})`,
+            } as CSSProperties
+          }
           aria-hidden="true"
         >
           <span className="canvas-selection-label">

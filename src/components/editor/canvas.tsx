@@ -29,9 +29,16 @@ function isTextInput(target: EventTarget | null) {
 export function Canvas({ suspended = false }: { suspended?: boolean }) {
   const { activeTool, canvasConfig, setPan, setZoom, setSelectedElementId } =
     useEditorStore();
+  const activePageId = useEditorStore((state) => state.activePageId);
+  const pageName = useEditorStore(
+    (state) =>
+      state.pages.find((page) => page.id === state.activePageId)?.name ??
+      "Home",
+  );
   const preview = useEditorStore((state) => state.isPreviewMode);
   const { zoom, pan } = canvasConfig;
   const viewportRef = useRef<HTMLElement>(null);
+  const fittedPages = useRef(new Set<string>());
   const spaceRef = useRef(false);
   const dragRef = useRef<{
     pointerId: number;
@@ -98,8 +105,17 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
   }, [setPan, setZoom]);
 
   useEffect(() => {
-    fitToView();
-  }, [fitToView]);
+    const { canvasConfig } = useEditorStore.getState();
+    if (
+      !fittedPages.current.has(activePageId) &&
+      canvasConfig.zoom === 1 &&
+      canvasConfig.pan.x === 0 &&
+      canvasConfig.pan.y === 0
+    )
+      fitToView();
+    fittedPages.current.add(activePageId);
+    finishPan();
+  }, [fitToView, activePageId, finishPan]);
 
   useEffect(() => {
     if (preview) fitToView();
@@ -320,7 +336,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       </div>
       <div className="canvas-breadcrumb" data-canvas-ui hidden={preview}>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />
-        <span>Home</span>
+        <span>{pageName}</span>
         <ChevronRight size={12} aria-hidden="true" />
         <span>Canvas</span>
       </div>
