@@ -312,3 +312,26 @@ test("deleting unrelated layers keeps selection and deleting the last root leave
   assert.equal(useEditorStore.getState().selectedElementId, null);
   assert.ok(state.addElement(null, "text", { x: 0, y: 0 }));
 });
+
+test("Stack tool creates an ordinary editable flex frame in one undo step", () => {
+  const state = useEditorStore.getState();
+  state.setActiveTool("stack");
+  const id = state.addElement("desktop", "stack", { x: 30, y: 40 })!;
+  const stack = findElementById(useEditorStore.getState().elements, id)!;
+  assert.equal(stack.type, "frame");
+  assert.equal(stack.name, "Stack");
+  assert.equal(stack.styles.display, "flex");
+  assert.equal(stack.styles.flexDirection, "column");
+  assert.equal(stack.styles.gap, 16);
+  assert.equal(useEditorStore.getState().activeTool, "select");
+  state.undo();
+  assert.equal(
+    findElementById(useEditorStore.getState().elements, id),
+    undefined,
+  );
+  state.redo();
+  assert.equal(
+    findElementById(useEditorStore.getState().elements, id)?.styles.display,
+    "flex",
+  );
+});

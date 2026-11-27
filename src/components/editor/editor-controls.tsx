@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import {
   Frame,
+  Hand,
   Layers,
   MousePointer2,
   Type,
@@ -15,11 +16,11 @@ export const tools: {
   icon: LucideIcon;
 }[] = [
   { id: "select", label: "Select", shortcut: "V", icon: MousePointer2 },
+  { id: "hand", label: "Hand", shortcut: "H", icon: Hand },
   { id: "frame", label: "Frame", shortcut: "F", icon: Frame },
+  { id: "stack", label: "Stack", shortcut: "S", icon: Layers },
   { id: "text", label: "Text", shortcut: "T", icon: Type },
 ];
-
-export const upcomingTools = [{ id: "stack", label: "Stack", icon: Layers }];
 
 export function IconButton({
   icon: Icon,

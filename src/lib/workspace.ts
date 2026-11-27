@@ -216,6 +216,7 @@ export function createWorkspace(starter = false): WorkspaceDocument {
     canvasConfig: { zoom: 1, pan: { x: 0, y: 0 } },
   };
   return {
+    canvasBackground: "#0a0a0a",
     projectTitle: starter ? "Landing Page Starter" : "Untitled",
     pages: [page],
     activePageId: page.id,
@@ -251,6 +252,11 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
   if (
     !record(data) ||
     data.version !== 1 ||
+    (data.canvasBackground !== undefined &&
+      (typeof data.canvasBackground !== "string" ||
+        !/^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(
+          data.canvasBackground,
+        ))) ||
     !string(data.projectTitle, 80) ||
     !data.projectTitle.trim() ||
     !Array.isArray(data.pages) ||
@@ -400,6 +406,9 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
   if (!string(data.activePageId) || !pageIds.has(data.activePageId))
     throw new Error("Invalid active page.");
   return {
+    ...(data.canvasBackground !== undefined
+      ? { canvasBackground: data.canvasBackground as string }
+      : {}),
     projectTitle: data.projectTitle,
     pages,
     components,
@@ -410,6 +419,7 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
 export function serializeWorkspace(document: WorkspaceDocument): string {
   return JSON.stringify({
     version: 1,
+    canvasBackground: document.canvasBackground,
     projectTitle: document.projectTitle,
     pages: document.pages,
     components: document.components,

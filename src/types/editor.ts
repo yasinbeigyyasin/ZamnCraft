@@ -44,7 +44,7 @@ export interface EditorElement {
   animations: Record<string, unknown>;
 }
 
-export type EditorTool = "select" | "frame" | "text";
+export type EditorTool = "select" | "hand" | "frame" | "stack" | "text";
 export type SidebarTab = "pages" | "layers" | "assets";
 export type Point = { x: number; y: number };
 export type CanvasConfig = { zoom: number; pan: Point };
@@ -64,6 +64,7 @@ export interface MasterComponent {
 }
 
 export interface WorkspaceDocument {
+  canvasBackground?: string;
   projectTitle: string;
   pages: EditorPage[];
   components: MasterComponent[];

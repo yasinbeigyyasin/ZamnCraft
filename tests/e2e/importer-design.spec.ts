@@ -8,7 +8,7 @@ test("editor chrome follows the approved importer tokens without changing author
   await expect(page.locator(".brand-mark")).toHaveText("Z");
   await expect(page.locator(".top-bar")).toHaveCSS(
     "border-bottom-color",
-    "rgb(41, 41, 41)",
+    "rgb(38, 38, 38)",
   );
   const font = await page
     .locator("body")
@@ -32,18 +32,17 @@ test("editor chrome follows the approved importer tokens without changing author
     inspector
       .getByRole("spinbutton", { name: "Width", exact: true })
       .locator(".."),
-  ).toHaveCSS("height", "30px");
-  const slider = inspector.getByRole("slider", {
-    name: "Opacity slider",
+  ).toHaveCSS("height", "28px");
+  const opacity = inspector.getByRole("spinbutton", {
+    name: "Opacity",
     exact: true,
   });
-  await slider.focus();
-  await page.keyboard.press("Home");
-  await page.keyboard.press("ArrowRight");
-  await slider.blur();
+  await opacity.focus();
+  await page.keyboard.press("ArrowDown");
+  await opacity.blur();
   await expect(page.locator('[data-editor-element="desktop"]')).toHaveCSS(
     "opacity",
-    "0.01",
+    "0.99",
   );
   await page.locator("#editor-canvas").focus();
   await page.keyboard.press("Control+z");
@@ -56,8 +55,10 @@ test("editor chrome follows the approved importer tokens without changing author
     exact: true,
   });
   await toggle.check();
-  await expect(toggle).toHaveCSS("background-color", "rgb(0, 153, 255)");
-  await expect(toggle).toHaveCSS("width", "28px");
+  await expect(toggle).toBeChecked();
+  await expect(
+    inspector.getByRole("spinbutton", { name: "Appear scale", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Export Code", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Export Code", exact: true });
   await expect(dialog).toHaveCSS("width", "800px");

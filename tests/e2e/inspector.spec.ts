@@ -1,3 +1,4 @@
+import { choose, expectChoice } from "./control-helpers";
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
 const rootSelector = '[data-editor-element="desktop"]';
@@ -54,7 +55,7 @@ test.beforeEach(async ({ page }) => {
 test("selection enables properties, position and size move the canvas, and switching selection reads the right values", async ({
   page,
 }) => {
-  await expect(field(page, "Width")).toBeDisabled();
+  await expect(field(page, "Width")).toHaveCount(0);
   const root = page.locator(rootSelector);
   await root.click({ position: { x: 10, y: 10 } });
   await expect(field(page, "Width")).toBeEnabled();
@@ -74,9 +75,10 @@ test("selection enables properties, position and size move the canvas, and switc
   const rootBox = (await root.boundingBox())!;
   const box = (await frame.boundingBox())!;
   expect(box.x).toBeCloseTo(rootBox.x - (20.5 * rootBox.width) / 1200, 1);
-  await inspector(page)
-    .getByRole("combobox", { name: "Position type", exact: true })
-    .selectOption("relative");
+  await choose(
+    inspector(page).getByRole("group", { name: "Position type", exact: true }),
+    "relative",
+  );
   await expect(frame).toHaveCSS("position", "relative");
   await field(page, "Width").fill("-5");
   await field(page, "Width").blur();
@@ -88,7 +90,7 @@ test("selection enables properties, position and size move the canvas, and switc
   await expect(field(page, "Y")).toHaveValue("45");
   await expect(field(page, "Width")).toHaveValue("320");
   await page.mouse.click(270, 100);
-  await expect(field(page, "Width")).toBeDisabled();
+  await expect(field(page, "Width")).toHaveCount(0);
 });
 
 test("Fixed, Fill and Fit sizing update real geometry and the inspector reports measured sizes", async ({
@@ -96,33 +98,33 @@ test("Fixed, Fill and Fit sizing update real geometry and the inspector reports 
 }) => {
   const root = page.locator(rootSelector);
   const frame = await insert(page, root, "Frame", 0, 0);
-  const widthMode = inspector(page).getByRole("combobox", {
+  const widthMode = inspector(page).getByRole("group", {
     name: "Width sizing",
     exact: true,
   });
-  const heightMode = inspector(page).getByRole("combobox", {
+  const heightMode = inspector(page).getByRole("group", {
     name: "Height sizing",
     exact: true,
   });
-  await widthMode.selectOption("fill");
-  await heightMode.selectOption("fill");
+  await choose(widthMode, "fill");
+  await choose(heightMode, "fill");
   await expect(frame).toHaveCSS("width", "1200px");
   await expect(frame).toHaveCSS("height", "800px");
   await expect(field(page, "Width")).toHaveValue("1200");
-  await widthMode.selectOption("fixed");
+  await choose(widthMode, "fixed");
   await expect(field(page, "Width")).toHaveValue("1200");
   await setNumber(page, "Width", 400);
   await setNumber(page, "Height", 250);
-  await widthMode.selectOption("fill");
+  await choose(widthMode, "fill");
   await setNumber(page, "Width", 400);
-  await expect(widthMode).toHaveValue("fixed");
+  await expectChoice(widthMode, "fixed");
   const text = await insert(page, frame, "Text", 20, 20);
-  await widthMode.selectOption("fit");
-  await heightMode.selectOption("fit");
+  await choose(widthMode, "fit");
+  await choose(heightMode, "fit");
   expect(
     await text.evaluate((node) => (node as HTMLElement).offsetWidth),
   ).toBeLessThan(200);
-  await expect(heightMode).toHaveValue("fit");
+  await expectChoice(heightMode, "fit");
   await inspector(page)
     .getByRole("textbox", { name: "Text content", exact: true })
     .fill("Fit");
@@ -130,7 +132,7 @@ test("Fixed, Fill and Fit sizing update real geometry and the inspector reports 
     (node) => (node as HTMLElement).offsetWidth,
   );
   await expect(field(page, "Width")).toHaveValue(String(measured));
-  await widthMode.selectOption("fixed");
+  await choose(widthMode, "fixed");
   await inspector(page)
     .getByRole("textbox", { name: "Text content", exact: true })
     .fill("A much longer sentence");
@@ -138,7 +140,7 @@ test("Fixed, Fill and Fit sizing update real geometry and the inspector reports 
   await selectLayer(page, root);
   await setNumber(page, "X", -50);
   await expect(root.locator("..")).toHaveCSS("left", "-50px");
-  await widthMode.selectOption("fill");
+  await choose(widthMode, "fill");
   await expect(root).toHaveCSS("width", "1200px");
 });
 
@@ -172,9 +174,11 @@ test("fill, native color picker, opacity, radius and border are live and invalid
   await expect(field(page, "Opacity")).toHaveValue("55.5");
   await setNumber(page, "Radius", 16);
   await expect(frame).toHaveCSS("border-radius", "16px");
-  await panel
-    .getByRole("combobox", { name: "Border", exact: true })
-    .selectOption("dashed");
+  await panel.getByRole("button", { name: "Add border", exact: true }).click();
+  await choose(
+    panel.getByRole("combobox", { name: "Border", exact: true }),
+    "dashed",
+  );
   await setNumber(page, "Border width", 3);
   await panel
     .getByRole("textbox", { name: "Border color hex", exact: true })
@@ -216,17 +220,19 @@ test("Stack and Grid arrange existing children with direction, gap, padding, ali
   const verticalFirst = (await firstNode.boundingBox())!;
   const verticalSecond = (await second.boundingBox())!;
   expect(verticalSecond.y).toBeGreaterThan(verticalFirst.y + 100);
-  await panel
-    .getByRole("combobox", { name: "Direction", exact: true })
-    .selectOption("row");
+  await choose(
+    panel.getByRole("group", { name: "Direction", exact: true }),
+    "row",
+  );
   const horizontalFirst = (await firstNode.boundingBox())!;
   const horizontalSecond = (await second.boundingBox())!;
   expect(horizontalSecond.x).toBeGreaterThan(horizontalFirst.x + 100);
   expect(horizontalSecond.y).toBeCloseTo(horizontalFirst.y, 1);
   await selectLayer(page, second);
-  await panel
-    .getByRole("combobox", { name: "Width sizing", exact: true })
-    .selectOption("fill");
+  await choose(
+    panel.getByRole("group", { name: "Width sizing", exact: true }),
+    "fill",
+  );
   await expect(second).toHaveCSS("width", "344px");
   await expect(field(page, "Width")).toHaveValue("344");
   await setNumber(page, "Width", 200);
@@ -268,15 +274,17 @@ test("Typography edits content and styles live; inline editing updates the Inspe
   await content.press("Delete");
   await expect(text).toHaveAttribute("data-selected", "true");
   await setNumber(page, "Font size", 28);
-  await panel
-    .getByRole("combobox", { name: "Weight", exact: true })
-    .selectOption("700");
+  await choose(
+    panel.getByRole("combobox", { name: "Weight", exact: true }),
+    "700",
+  );
   await panel
     .getByRole("textbox", { name: "Text color hex", exact: true })
     .fill("#aabbcc");
-  await panel
-    .getByRole("combobox", { name: "Text alignment", exact: true })
-    .selectOption("center");
+  await choose(
+    panel.getByRole("group", { name: "Text alignment", exact: true }),
+    "center",
+  );
   await expect(text).toHaveCSS("font-size", "28px");
   await expect(text).toHaveCSS("font-weight", "700");
   await expect(text).toHaveCSS("color", "rgb(170, 187, 204)");

@@ -262,3 +262,22 @@ test("automatic persistence debounces and flushes committed edits, not an in-fli
     350,
   );
 });
+
+test("canvas background is validated, undoable, persisted and backward compatible", () => {
+  store().setCanvasBackground("#123456");
+  assert.equal(store().canvasBackground, "#123456");
+  const saved = serializeWorkspace(store());
+  assert.equal(parseWorkspace(saved).canvasBackground, "#123456");
+  store().setCanvasBackground("url(javascript:alert(1))");
+  assert.equal(store().canvasBackground, "#123456");
+  store().undo();
+  assert.equal(store().canvasBackground, "#0a0a0a");
+  store().redo();
+  assert.equal(store().canvasBackground, "#123456");
+  const old = JSON.parse(saved);
+  delete old.canvasBackground;
+  store().hydrateWorkspace(parseWorkspace(JSON.stringify(old)));
+  assert.equal(store().canvasBackground, "#0a0a0a");
+  old.canvasBackground = "red; background: url(untrusted)";
+  assert.throws(() => parseWorkspace(JSON.stringify(old)));
+});

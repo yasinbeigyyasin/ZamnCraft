@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type CSSProperties } from "react";
 import {
   Component,
   ChevronDown,
@@ -157,7 +157,12 @@ function LayerItem({
         </button>
       </div>
       {element.children.length > 0 && (
-        <div id={childrenId} hidden={!expanded}>
+        <div
+          id={childrenId}
+          className="layer-children"
+          style={{ "--tree-depth": depth } as CSSProperties}
+          hidden={!expanded}
+        >
           <ElementLayers
             elements={element.children}
             depth={depth + 1}

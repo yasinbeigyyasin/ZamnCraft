@@ -133,6 +133,8 @@ export interface EditorState {
   activeTool: EditorTool;
   tab: SidebarTab;
   canvasConfig: CanvasConfig;
+  canvasBackground: string;
+  setCanvasBackground: (color: string) => void;
   isPreviewMode: boolean;
   previewCanvasConfig: CanvasConfig | null;
   animationReplay: { elementId: string; sequence: number } | null;
@@ -142,7 +144,7 @@ export interface EditorState {
   setElements: (elements: EditorElement[]) => void;
   addElement: (
     parentId: string | null,
-    type: "frame" | "text",
+    type: "frame" | "text" | "stack",
     position: Point,
   ) => string | null;
   updateText: (id: string, content: string) => void;
@@ -173,6 +175,7 @@ function defaultElements(id: string): EditorElement[] {
 
 function snapshot(state: EditorState): HistorySnapshot {
   return {
+    canvasBackground: state.canvasBackground,
     projectTitle: state.projectTitle,
     pages: state.pages,
     components: state.components,
@@ -185,6 +188,7 @@ function documentChanged(
   after: WorkspaceDocument,
 ): boolean {
   return (
+    before.canvasBackground !== after.canvasBackground ||
     before.projectTitle !== after.projectTitle ||
     before.pages.length !== after.pages.length ||
     before.pages.some((page, index) => {
@@ -212,6 +216,7 @@ function restore(
     "selectedElementId" in document ? document.selectedElementId : null;
   return {
     ...document,
+    canvasBackground: document.canvasBackground ?? "#0a0a0a",
     elements: page.elements,
     canvasConfig: page.canvasConfig,
     selectedElementId:
@@ -326,6 +331,7 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         historyTransaction: null,
         ...(cancel && changed
           ? {
+              canvasBackground: before.canvasBackground ?? "#0a0a0a",
               projectTitle: before.projectTitle,
               pages: before.pages,
               components: before.components,
@@ -698,6 +704,11 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
           })),
         };
       }),
+    canvasBackground: "#0a0a0a",
+    setCanvasBackground: (color) => {
+      if (/^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(color))
+        set({ canvasBackground: color });
+    },
     selectedElementId: null,
     activeTool: "select",
     tab: "pages",
@@ -721,8 +732,9 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         if (parentId !== null && parent?.type !== "frame") return state;
         const element: EditorElement = {
           id: crypto.randomUUID(),
-          name: type === "frame" ? "Frame" : "Text",
-          type,
+          name:
+            type === "frame" ? "Frame" : type === "stack" ? "Stack" : "Text",
+          type: type === "stack" ? "frame" : type,
           children: [],
           styles: {
             position:
@@ -742,7 +754,15 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
                   ? position.y
                   : Math.max(0, position.y),
             width: 200,
-            ...(type === "frame"
+            ...(type === "stack"
+              ? {
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                  padding: 16,
+                }
+              : {}),
+            ...(type !== "text"
               ? { height: 200, backgroundColor: "#e5e5e5" }
               : {
                   minHeight: 24,

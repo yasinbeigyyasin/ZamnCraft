@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 test("desktop keeps the specified panel dimensions and theme", async ({
   page,
 }) => {
-  await expect(page.locator(".top-bar")).toHaveCSS("height", "48px");
+  await expect(page.locator(".top-bar")).toHaveCSS("height", "52px");
   await expect(
     page.getByRole("complementary", { name: "Project navigation" }),
   ).toHaveCSS("width", "256px");
@@ -236,11 +236,11 @@ test("mobile retains navigation and inspector access without overflow or duplica
   await page.getByRole("button", { name: "Open inspector" }).click();
   const inspector = page.getByRole("dialog", { name: "Inspector properties" });
   await expect(
-    inspector.getByRole("heading", { name: "Position", exact: true }),
+    inspector.getByRole("heading", { name: "Canvas Settings", exact: true }),
   ).toBeVisible();
   await expect(
     inspector.getByRole("spinbutton", { name: "Width", exact: true }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("button", { name: "Open inspector" }),

@@ -14,6 +14,8 @@ import {
   useEditorStore,
   type Point,
 } from "@/store/useEditorStore";
+import { createPortal } from "react-dom";
+import { PopoverSelect } from "./property-controls";
 import { BREAKPOINTS } from "@/lib/workspace";
 import { IconButton, tools } from "./editor-controls";
 import { CanvasRenderer } from "./CanvasRenderer";
@@ -57,6 +59,11 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     suspended || preview,
     suppressClick,
   );
+  const [toolbarTarget, setToolbarTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setToolbarTarget(document.getElementById("toolbar-breakpoints"));
+  }, []);
+  const canvasBackground = useEditorStore((state) => state.canvasBackground);
   const [spacePressed, setSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const activeToolLabel = tools.find((item) => item.id === activeTool)?.label;
@@ -232,7 +239,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     if (preview && event.button !== 1 && !spaceRef.current) return;
     suppressClickRef.current = false;
     event.currentTarget.focus({ preventScroll: true });
-    if (event.button !== 1 && !spaceRef.current) {
+    if (event.button !== 1 && !spaceRef.current && activeTool !== "hand") {
       manipulation.start(event);
       return;
     }
@@ -256,6 +263,61 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       });
   }
 
+  const breakpointControls = (
+    <div
+      className="canvas-breakpoints"
+      role="group"
+      aria-label="Canvas breakpoints"
+      data-canvas-ui
+    >
+      {preview ? (
+        <PopoverSelect
+          label="Preview breakpoint"
+          value={previewRootId ?? ""}
+          options={elements
+            .filter((element) => element.breakpoint)
+            .map((element) => ({
+              value: element.id,
+              label: `${element.name} · ${element.styles.width}px`,
+              hint: "Preview",
+            }))}
+          onChange={(value) => useEditorStore.getState().setPreviewRoot(value)}
+        />
+      ) : (
+        BREAKPOINTS.map((config) => {
+          const frame = elements.find(
+            (element) => element.breakpoint === config.id,
+          );
+          if (config.id === "desktop" && !frame) return null;
+          return (
+            <button
+              key={config.id}
+              type="button"
+              disabled={
+                suspended ||
+                (!frame &&
+                  !elements.some((element) => element.type === "frame"))
+              }
+              aria-label={`${frame ? "Focus" : "Add"} ${config.name} breakpoint`}
+              onClick={() => {
+                if (frame) {
+                  setSelectedElementId(frame.id);
+                  fitToView(frame.id);
+                } else if (config.id !== "desktop") {
+                  useEditorStore.getState().addBreakpoint(config.id);
+                  fitToView();
+                }
+              }}
+            >
+              {frame ? "" : "+ "}
+              {config.name} <span>{config.width}</span>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+
   return (
     <section
       id="editor-canvas"
@@ -263,8 +325,9 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       aria-label={preview ? "Live preview" : "Design canvas"}
       aria-describedby="canvas-navigation-help"
       tabIndex={0}
-      className={`canvas ${preview ? "canvas-preview" : ""} canvas-tool-${activeTool} ${spacePressed ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""} ${manipulation.active ? "canvas-manipulating" : ""}`}
+      className={`canvas ${preview ? "canvas-preview" : ""} canvas-tool-${activeTool} ${spacePressed || activeTool === "hand" ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""} ${manipulation.active ? "canvas-manipulating" : ""}`}
       style={{
+        backgroundColor: canvasBackground,
         backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
         backgroundPosition: `${pan.x}px ${pan.y}px`,
         cursor: manipulation.active
@@ -311,6 +374,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         const target = event.target instanceof Element ? event.target : null;
         if (target?.closest("[data-canvas-ui]")) return;
         const state = useEditorStore.getState();
+        if (state.activeTool === "hand") return;
         if (state.activeTool === "select") {
           setSelectedElementId(null);
           return;
@@ -357,64 +421,9 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           />
         ))}
       </div>
-      <div
-        className="canvas-breakpoints"
-        role="group"
-        aria-label="Canvas breakpoints"
-        data-canvas-ui
-      >
-        {preview ? (
-          <label>
-            Preview{" "}
-            <select
-              aria-label="Preview breakpoint"
-              value={previewRootId ?? ""}
-              onChange={(event) =>
-                useEditorStore.getState().setPreviewRoot(event.target.value)
-              }
-            >
-              {elements
-                .filter((element) => element.breakpoint)
-                .map((element) => (
-                  <option key={element.id} value={element.id}>
-                    {element.name} · {element.styles.width}px
-                  </option>
-                ))}
-            </select>
-          </label>
-        ) : (
-          BREAKPOINTS.map((config) => {
-            const frame = elements.find(
-              (element) => element.breakpoint === config.id,
-            );
-            if (config.id === "desktop" && !frame) return null;
-            return (
-              <button
-                key={config.id}
-                type="button"
-                disabled={
-                  suspended ||
-                  (!frame &&
-                    !elements.some((element) => element.type === "frame"))
-                }
-                aria-label={`${frame ? "Focus" : "Add"} ${config.name} breakpoint`}
-                onClick={() => {
-                  if (frame) {
-                    setSelectedElementId(frame.id);
-                    fitToView(frame.id);
-                  } else if (config.id !== "desktop") {
-                    useEditorStore.getState().addBreakpoint(config.id);
-                    fitToView();
-                  }
-                }}
-              >
-                {frame ? "" : "+ "}
-                {config.name} <span>{config.width}</span>
-              </button>
-            );
-          })
-        )}
-      </div>
+      {!preview && toolbarTarget
+        ? createPortal(breakpointControls, toolbarTarget)
+        : breakpointControls}
       <div className="canvas-breadcrumb" data-canvas-ui hidden={preview}>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />
         <span>{pageName}</span>

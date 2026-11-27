@@ -49,6 +49,7 @@ export function startWorkspacePersistence(
   };
   const unsubscribe = store.subscribe((state, previous) => {
     if (
+      state.canvasBackground !== previous.canvasBackground ||
       state.pages !== previous.pages ||
       state.components !== previous.components ||
       state.projectTitle !== previous.projectTitle ||

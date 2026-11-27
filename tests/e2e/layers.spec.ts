@@ -67,7 +67,7 @@ test("recursive layers indent, show type icons, collapse without hiding canvas c
   await expect(
     textRow.getByRole("button", { name: /Collapse|Expand/ }),
   ).toHaveCount(0);
-  await expect(textRow).toHaveCSS("background-color", "rgb(20, 36, 50)");
+  await expect(textRow).toHaveCSS("background-color", "rgb(21, 51, 74)");
   await panel
     .getByRole("button", { name: "Collapse Frame", exact: true })
     .click();

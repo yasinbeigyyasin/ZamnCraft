@@ -1,3 +1,4 @@
+import { choose } from "./control-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { WORKSPACE_KEY } from "../../src/lib/workspace";
 
@@ -67,14 +68,16 @@ test("Tablet and Mobile copy the Desktop tree at 810/390px side by side and prev
   const camera = await page.locator(".canvas-world").getAttribute("style");
   await page.getByRole("button", { name: "Preview site", exact: true }).click();
   await expect(desktop).toBeVisible();
-  await page
-    .getByRole("combobox", { name: "Preview breakpoint", exact: true })
-    .selectOption({ label: "Mobile · 390px" });
+  await choose(
+    page.getByRole("combobox", { name: "Preview breakpoint", exact: true }),
+    { label: "Mobile · 390px" },
+  );
   await expect(mobile).toBeVisible();
   await expect(desktop).toHaveCount(0);
-  await page
-    .getByRole("combobox", { name: "Preview breakpoint", exact: true })
-    .selectOption({ label: "Desktop · 1200px" });
+  await choose(
+    page.getByRole("combobox", { name: "Preview breakpoint", exact: true }),
+    { label: "Desktop · 1200px" },
+  );
   await expect(desktop).toBeVisible();
   await expect(mobile).toHaveCount(0);
   await page.keyboard.press("Escape");

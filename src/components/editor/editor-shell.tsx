@@ -19,7 +19,7 @@ import { startWorkspacePersistence } from "@/lib/workspace-persistence";
 import { canCreateComponent } from "@/lib/editor-components";
 import { Canvas } from "./canvas";
 import { useEditorStore } from "@/store/useEditorStore";
-import { IconButton, tools, upcomingTools } from "./editor-controls";
+import { IconButton, tools } from "./editor-controls";
 import { EditorDialog, type EditorDialogKind } from "./editor-dialog";
 import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
@@ -185,9 +185,10 @@ export function EditorShell() {
                     .getElementById("editor-canvas")
                     ?.focus({ preventScroll: true });
               }}
-              className="tool-button"
+              className={`tool-button ${id === "frame" ? "tool-insert-start" : ""}`}
             >
               <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
+              <span className="tool-label">{label}</span>
               {id === "frame" && (
                 <ChevronDown
                   size={9}
@@ -195,18 +196,6 @@ export function EditorShell() {
                   aria-hidden="true"
                 />
               )}
-            </button>
-          ))}
-          {upcomingTools.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              className="tool-button"
-              disabled
-              aria-label={`${label} (coming soon)`}
-              title={`${label} — coming soon`}
-            >
-              <Icon size={17} strokeWidth={1.7} aria-hidden="true" />
             </button>
           ))}
           <button
@@ -225,6 +214,11 @@ export function EditorShell() {
             <Component size={17} strokeWidth={1.7} aria-hidden="true" />
           </button>
         </nav>
+        <div
+          id="toolbar-breakpoints"
+          className="toolbar-breakpoints"
+          hidden={preview}
+        />
         <div className="toolbar-actions">
           <IconButton
             icon={Undo2}

@@ -1,6 +1,34 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import {
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  ArrowDown,
+  ArrowRight,
+  ArrowLeft,
+  ArrowUp,
+  Component,
+  Frame,
+  Grip,
+  Layers,
+  Minus,
+  Plus,
+  RotateCcw,
+  Square,
+  Type,
+  MousePointer2,
+} from "lucide-react";
 import {
   findElementById,
   getLayoutMode,
@@ -9,179 +37,177 @@ import {
   type EditorElement,
 } from "@/store/editor-store";
 import { DEFAULT_EFFECTS } from "@/lib/element-effects";
+import { ScrubInput } from "./scrub-input";
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  ChevronDown,
-  Grip,
-  Layers,
-  MousePointer2,
-  Settings2,
-  RotateCcw,
-  Square,
-  StretchHorizontal,
-} from "lucide-react";
+  PopoverSelect,
+  PropertyRow,
+  SegmentedControl,
+  type ControlOption,
+} from "./property-controls";
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  displayLabel = label,
-  min,
-  max,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  displayLabel?: string;
-  min?: number;
-  max?: number;
-}) {
-  const [draft, setDraft] = useState(String(value));
-  const [focused, setFocused] = useState(false);
-  return (
-    <label className="inspector-field">
-      <span>{displayLabel}</span>
-      <input
-        type="number"
-        step="any"
-        aria-label={label}
-        min={min}
-        max={max}
-        value={focused ? draft : value}
-        onFocus={() => {
-          setDraft(String(value));
-          setFocused(true);
-        }}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          const next = event.target.valueAsNumber;
-          if (
-            Number.isFinite(next) &&
-            (min === undefined || next >= min) &&
-            (max === undefined || next <= max)
-          )
-            onChange(next);
-        }}
-        onBlur={() => setFocused(false)}
-      />
-    </label>
-  );
-}
+const numeric = (value: unknown, fallback = 0) =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+const options = (
+  items: readonly (readonly [string, string])[],
+): ControlOption[] => items.map(([value, label]) => ({ value, label }));
+const sizing = options([
+  ["fixed", "Fixed"],
+  ["fill", "Fill"],
+  ["fit", "Fit"],
+]);
+const layouts: ControlOption[] = [
+  { value: "free", label: "Free", icon: Square },
+  { value: "stack", label: "Stack", icon: Layers },
+  { value: "grid", label: "Grid", icon: Grip },
+];
 
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  displayLabel = label,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: readonly (readonly [string, string])[];
-  displayLabel?: string;
-}) {
-  return (
-    <label className="inspector-select">
-      <span>{displayLabel}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map(([value, name]) => (
-          <option key={value} value={value}>
-            {name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ColorField({
-  label,
-  value,
-  onChange,
-  clearable = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  clearable?: boolean;
-}) {
-  const [draft, setDraft] = useState(value);
-  const [focused, setFocused] = useState(false);
-  const hex = /^#[\da-f]{3,8}$/i.test(value) ? value : "#000000";
-  const picker =
-    hex.length === 4
-      ? `#${hex
-          .slice(1)
-          .split("")
-          .map((char) => char + char)
-          .join("")}`
-      : hex.slice(0, 7);
-  return (
-    <div className="inspector-color property-row">
-      <span>{label}</span>
-      <input
-        type="color"
-        aria-label={`${label} color picker`}
-        value={picker}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      <input
-        type="text"
-        aria-label={`${label} hex`}
-        spellCheck={false}
-        value={focused ? draft : value}
-        onFocus={() => {
-          setDraft(value);
-          setFocused(true);
-        }}
-        onChange={(event) => {
-          const next = event.target.value;
-          setDraft(next);
-          if (/^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(next))
-            onChange(next);
-        }}
-        onBlur={() => setFocused(false)}
-      />
-      {clearable && (
-        <button
-          type="button"
-          className="color-clear"
-          aria-label="Remove fill"
-          onClick={() => onChange("transparent")}
-        >
-          ×
-        </button>
-      )}
-    </div>
-  );
-}
-
-function InspectorSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="inspector-section" aria-label={title}>
       <div className="inspector-section-heading">
         <h3>{title}</h3>
-        <ChevronDown size={12} aria-hidden="true" />
       </div>
-      {children}
+      <div className="section-controls">{children}</div>
     </section>
   );
 }
-
+function Feature({
+  title,
+  active,
+  onToggle,
+  children,
+  checkboxLabel,
+}: {
+  title: string;
+  active: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  checkboxLabel?: string;
+}) {
+  const Icon = active ? Minus : Plus;
+  return (
+    <section className="inspector-section feature-section" aria-label={title}>
+      <div className="inspector-section-heading">
+        <h3>{title}</h3>
+        {checkboxLabel ? (
+          <label
+            className="feature-toggle"
+            title={`${active ? "Remove" : "Add"} ${title}`}
+          >
+            <input
+              type="checkbox"
+              aria-label={checkboxLabel}
+              checked={active}
+              onChange={onToggle}
+            />
+            <Icon size={14} aria-hidden="true" />
+          </label>
+        ) : (
+          <button
+            type="button"
+            className="feature-toggle"
+            aria-label={`${active ? "Remove" : "Add"} ${title.toLowerCase()}`}
+            onClick={onToggle}
+          >
+            <Icon size={14} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      {active && (
+        <div className="section-controls feature-content">{children}</div>
+      )}
+    </section>
+  );
+}
+function Choice({
+  label,
+  value,
+  items,
+  onChange,
+  displayLabel = label,
+  popover = false,
+}: {
+  label: string;
+  value: string;
+  items: ControlOption[];
+  onChange: (value: string) => void;
+  displayLabel?: string;
+  popover?: boolean;
+}) {
+  return (
+    <PropertyRow label={displayLabel}>
+      {popover ? (
+        <PopoverSelect
+          label={label}
+          value={value}
+          options={items}
+          onChange={onChange}
+        />
+      ) : (
+        <SegmentedControl
+          label={label}
+          value={value}
+          options={items}
+          onChange={onChange}
+        />
+      )}
+    </PropertyRow>
+  );
+}
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value),
+    [focused, setFocused] = useState(false);
+  const hex = /^#[\da-f]{6}/i.test(value)
+    ? value.slice(0, 7)
+    : /^#[\da-f]{3}$/i.test(value)
+      ? "#" +
+        value
+          .slice(1)
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : "#000000";
+  return (
+    <PropertyRow label={label}>
+      <div className="color-control">
+        <input
+          type="color"
+          aria-label={`${label} color picker`}
+          value={hex}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <input
+          type="text"
+          aria-label={`${label} hex`}
+          spellCheck={false}
+          value={focused ? draft : value}
+          onFocus={() => {
+            setDraft(value);
+            setFocused(true);
+          }}
+          onBlur={() => setFocused(false)}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            if (
+              /^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(
+                event.target.value,
+              )
+            )
+              onChange(event.target.value);
+          }}
+        />
+      </div>
+    </PropertyRow>
+  );
+}
 function ShadowField({
   value,
   onChange,
@@ -189,302 +215,457 @@ function ShadowField({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const [draft, setDraft] = useState(value);
-  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState(value),
+    [focused, setFocused] = useState(false);
   return (
-    <label className="effect-shadow-label">
-      Shadow CSS
+    <PropertyRow label="CSS">
       <input
+        className="text-control"
         aria-label="Shadow"
-        value={focused ? draft : value}
         spellCheck={false}
+        value={focused ? draft : value}
         onFocus={() => {
           setDraft(value);
           setFocused(true);
         }}
+        onBlur={() => setFocused(false)}
         onChange={(event) => {
           setDraft(event.target.value);
           if (CSS.supports("box-shadow", event.target.value))
             onChange(event.target.value);
         }}
-        onBlur={() => setFocused(false)}
       />
-    </label>
+    </PropertyRow>
   );
 }
 
-function EffectsInspector({ element }: { element?: EditorElement }) {
-  const effects = element?.effects ?? DEFAULT_EFFECTS;
-  const updateEffects = useEditorStore((state) => state.updateEffects);
-  const replayAnimation = useEditorStore((state) => state.replayAnimation);
-  const id = element?.id ?? "";
+function EffectsInspector({ element }: { element: EditorElement }) {
+  const effects = element.effects ?? DEFAULT_EFFECTS;
+  const update = useEditorStore((state) => state.updateEffects),
+    replay = useEditorStore((state) => state.replayAnimation);
+  const id = element.id;
+  const animated =
+    effects.appear.enabled || effects.hover.enabled || effects.press.enabled;
   return (
-    <InspectorSection title="Effects & Animations">
-      <label className="effect-toggle">
-        <input
-          type="checkbox"
-          aria-label="Appear enabled"
-          checked={effects.appear.enabled}
-          onChange={(event) =>
-            updateEffects(id, { appear: { enabled: event.target.checked } })
-          }
-        />
-        Appear
-      </label>
-      <fieldset
-        className="effect-fields"
-        disabled={!effects.appear.enabled}
-        aria-label="Appear settings"
+    <>
+      <div className="inspector-category">Effects & motion</div>
+      <Feature
+        title="Appear"
+        active={effects.appear.enabled}
+        checkboxLabel="Appear enabled"
+        onToggle={() =>
+          update(id, { appear: { enabled: !effects.appear.enabled } })
+        }
       >
-        <div className="field-grid">
-          <NumberField
-            label="Appear opacity"
-            displayLabel="Opacity %"
-            value={effects.appear.opacity * 100}
-            min={0}
-            max={100}
-            onChange={(value) =>
-              updateEffects(id, { appear: { opacity: value / 100 } })
-            }
-          />
-          <NumberField
-            label="Appear scale"
-            displayLabel="Scale"
-            value={effects.appear.scale}
-            min={0}
-            max={10}
-            onChange={(scale) => updateEffects(id, { appear: { scale } })}
-          />
-          <NumberField
-            label="Appear X offset"
-            displayLabel="Offset X"
-            value={effects.appear.offsetX}
-            onChange={(offsetX) => updateEffects(id, { appear: { offsetX } })}
-          />
-          <NumberField
-            label="Appear Y offset"
-            displayLabel="Offset Y"
-            value={effects.appear.offsetY}
-            onChange={(offsetY) => updateEffects(id, { appear: { offsetY } })}
-          />
-        </div>
-        <button
-          type="button"
-          className="effect-replay"
-          onClick={() => replayAnimation(id)}
-        >
-          <RotateCcw size={12} aria-hidden="true" />
-          Replay animation
-        </button>
-      </fieldset>
-      <label className="effect-toggle">
-        <input
-          type="checkbox"
-          aria-label="Hover enabled"
-          checked={effects.hover.enabled}
-          onChange={(event) =>
-            updateEffects(id, { hover: { enabled: event.target.checked } })
-          }
-        />
-        Hover
-      </label>
-      <fieldset
-        className="effect-fields"
-        disabled={!effects.hover.enabled}
-        aria-label="Hover settings"
-      >
-        <div className="field-grid">
-          <NumberField
-            label="Hover scale"
-            displayLabel="Scale"
-            value={effects.hover.scale}
-            min={0}
-            max={10}
-            onChange={(scale) => updateEffects(id, { hover: { scale } })}
-          />
-          <NumberField
-            label="Hover rotate"
-            displayLabel="Rotate °"
-            value={effects.hover.rotate}
-            onChange={(rotate) => updateEffects(id, { hover: { rotate } })}
-          />
-        </div>
-        <label className="effect-toggle">
-          <input
-            type="checkbox"
-            aria-label="Hover fill override"
-            checked={effects.hover.fill !== undefined}
-            onChange={(event) =>
-              updateEffects(id, {
-                hover: { fill: event.target.checked ? "#0099ff" : undefined },
-              })
-            }
-          />
-          Fill override
-        </label>
-        {effects.hover.fill !== undefined && (
-          <ColorField
-            label="Hover fill"
-            value={effects.hover.fill}
-            onChange={(fill) => updateEffects(id, { hover: { fill } })}
-          />
-        )}
-        <label className="effect-toggle">
-          <input
-            type="checkbox"
-            aria-label="Hover opacity override"
-            checked={effects.hover.opacity !== undefined}
-            onChange={(event) =>
-              updateEffects(id, {
-                hover: { opacity: event.target.checked ? 1 : undefined },
-              })
-            }
-          />
-          Opacity override
-        </label>
-        {effects.hover.opacity !== undefined && (
-          <NumberField
-            label="Hover opacity"
-            displayLabel="Opacity %"
-            value={effects.hover.opacity * 100}
-            min={0}
-            max={100}
-            onChange={(value) =>
-              updateEffects(id, { hover: { opacity: value / 100 } })
-            }
-          />
-        )}
-      </fieldset>
-      <label className="effect-toggle">
-        <input
-          type="checkbox"
-          aria-label="Press enabled"
-          checked={effects.press.enabled}
-          onChange={(event) =>
-            updateEffects(id, { press: { enabled: event.target.checked } })
-          }
-        />
-        Press
-      </label>
-      <fieldset
-        className="effect-fields"
-        disabled={!effects.press.enabled}
-        aria-label="Press settings"
-      >
-        <NumberField
-          label="Press scale"
-          displayLabel="Scale"
-          value={effects.press.scale}
-          min={0}
-          max={10}
-          onChange={(scale) => updateEffects(id, { press: { scale } })}
-        />
-      </fieldset>
-      <div className="inspector-spaced">
-        <SelectField
-          label="Transition"
-          value={effects.transition.type}
-          options={[
-            ["ease", "Ease"],
-            ["spring", "Spring"],
-          ]}
-          onChange={(value) =>
-            updateEffects(id, {
-              transition: { type: value as "ease" | "spring" },
-            })
-          }
-        />
-        {effects.transition.type === "ease" ? (
-          <NumberField
-            label="Transition duration"
-            displayLabel="Duration (s)"
-            value={effects.transition.duration}
-            min={0}
-            max={10}
-            onChange={(duration) =>
-              updateEffects(id, { transition: { duration } })
-            }
-          />
-        ) : (
-          <div className="field-grid">
-            <NumberField
-              label="Spring stiffness"
-              displayLabel="Stiffness"
-              value={effects.transition.stiffness}
-              min={1}
-              max={1000}
-              onChange={(stiffness) =>
-                updateEffects(id, { transition: { stiffness } })
-              }
-            />
-            <NumberField
-              label="Spring damping"
-              displayLabel="Damping"
-              value={effects.transition.damping}
-              min={1}
+        <div role="group" aria-label="Appear settings">
+          <PropertyRow label="Starting">
+            <ScrubInput
+              label="Appear opacity"
+              displayLabel="α"
+              unit="%"
+              min={0}
               max={100}
-              onChange={(damping) =>
-                updateEffects(id, { transition: { damping } })
+              value={effects.appear.opacity * 100}
+              onChange={(value) =>
+                update(id, { appear: { opacity: value / 100 } })
               }
             />
-          </div>
-        )}
-      </div>
-      <div className="inspector-spaced">
-        <NumberField
-          label="Blur"
-          displayLabel="Blur (px)"
-          value={effects.blur}
-          min={0}
-          max={100}
-          onChange={(blur) => updateEffects(id, { blur })}
-        />
-      </div>
-      <div className="inspector-spaced">
-        <SelectField
+            <ScrubInput
+              label="Appear scale"
+              displayLabel="Scale"
+              unit="×"
+              step={0.01}
+              min={0}
+              max={10}
+              value={effects.appear.scale}
+              onChange={(scale) => update(id, { appear: { scale } })}
+            />
+          </PropertyRow>
+          <PropertyRow label="Offset">
+            <ScrubInput
+              label="Appear X offset"
+              displayLabel="X"
+              value={effects.appear.offsetX}
+              onChange={(offsetX) => update(id, { appear: { offsetX } })}
+            />
+            <ScrubInput
+              label="Appear Y offset"
+              displayLabel="Y"
+              value={effects.appear.offsetY}
+              onChange={(offsetY) => update(id, { appear: { offsetY } })}
+            />
+          </PropertyRow>
+          <button
+            type="button"
+            className="effect-replay"
+            onClick={() => replay(id)}
+          >
+            <RotateCcw size={12} />
+            Replay animation
+          </button>
+        </div>
+      </Feature>
+      <Feature
+        title="Hover"
+        active={effects.hover.enabled}
+        checkboxLabel="Hover enabled"
+        onToggle={() =>
+          update(id, { hover: { enabled: !effects.hover.enabled } })
+        }
+      >
+        <div role="group" aria-label="Hover settings">
+          <PropertyRow label="Transform">
+            <ScrubInput
+              label="Hover scale"
+              displayLabel="Scale"
+              unit="×"
+              step={0.01}
+              min={0}
+              max={10}
+              value={effects.hover.scale}
+              onChange={(scale) => update(id, { hover: { scale } })}
+            />
+            <ScrubInput
+              label="Hover rotate"
+              displayLabel="°"
+              unit="deg"
+              value={effects.hover.rotate}
+              onChange={(rotate) => update(id, { hover: { rotate } })}
+            />
+          </PropertyRow>
+          <label className="override-toggle">
+            <input
+              type="checkbox"
+              aria-label="Hover fill override"
+              checked={effects.hover.fill !== undefined}
+              onChange={(event) =>
+                update(id, {
+                  hover: { fill: event.target.checked ? "#0099ff" : undefined },
+                })
+              }
+            />
+            Fill override
+          </label>
+          {effects.hover.fill !== undefined && (
+            <ColorField
+              label="Hover fill"
+              value={effects.hover.fill}
+              onChange={(fill) => update(id, { hover: { fill } })}
+            />
+          )}
+          <label className="override-toggle">
+            <input
+              type="checkbox"
+              aria-label="Hover opacity override"
+              checked={effects.hover.opacity !== undefined}
+              onChange={(event) =>
+                update(id, {
+                  hover: { opacity: event.target.checked ? 1 : undefined },
+                })
+              }
+            />
+            Opacity override
+          </label>
+          {effects.hover.opacity !== undefined && (
+            <PropertyRow label="Opacity">
+              <ScrubInput
+                label="Hover opacity"
+                displayLabel="α"
+                unit="%"
+                min={0}
+                max={100}
+                value={effects.hover.opacity * 100}
+                onChange={(value) =>
+                  update(id, { hover: { opacity: value / 100 } })
+                }
+              />
+            </PropertyRow>
+          )}
+        </div>
+      </Feature>
+      <Feature
+        title="Press"
+        active={effects.press.enabled}
+        checkboxLabel="Press enabled"
+        onToggle={() =>
+          update(id, { press: { enabled: !effects.press.enabled } })
+        }
+      >
+        <PropertyRow label="Scale">
+          <ScrubInput
+            label="Press scale"
+            displayLabel="Scale"
+            unit="×"
+            step={0.01}
+            min={0}
+            max={10}
+            value={effects.press.scale}
+            onChange={(scale) => update(id, { press: { scale } })}
+          />
+        </PropertyRow>
+      </Feature>
+      {animated && (
+        <Section title="Transition">
+          <Choice
+            label="Transition"
+            displayLabel="Type"
+            value={effects.transition.type}
+            items={options([
+              ["ease", "Ease"],
+              ["spring", "Spring"],
+            ])}
+            onChange={(value) =>
+              update(id, { transition: { type: value as "ease" | "spring" } })
+            }
+          />
+          {effects.transition.type === "ease" ? (
+            <PropertyRow label="Duration">
+              <ScrubInput
+                label="Transition duration"
+                displayLabel="Time"
+                unit="s"
+                step={0.01}
+                min={0}
+                max={10}
+                value={effects.transition.duration}
+                onChange={(duration) =>
+                  update(id, { transition: { duration } })
+                }
+              />
+            </PropertyRow>
+          ) : (
+            <>
+              <PropertyRow label="Stiffness">
+                <ScrubInput
+                  label="Spring stiffness"
+                  displayLabel="K"
+                  unit=""
+                  min={1}
+                  max={1000}
+                  value={effects.transition.stiffness}
+                  onChange={(stiffness) =>
+                    update(id, { transition: { stiffness } })
+                  }
+                />
+              </PropertyRow>
+              <PropertyRow label="Damping">
+                <ScrubInput
+                  label="Spring damping"
+                  displayLabel="D"
+                  unit=""
+                  min={1}
+                  max={100}
+                  value={effects.transition.damping}
+                  onChange={(damping) =>
+                    update(id, { transition: { damping } })
+                  }
+                />
+              </PropertyRow>
+            </>
+          )}
+        </Section>
+      )}
+      <Feature
+        title="Shadow"
+        active={effects.shadow !== "none"}
+        onToggle={() =>
+          update(id, {
+            shadow: effects.shadow === "none" ? "0 4px 12px #00000026" : "none",
+          })
+        }
+      >
+        <Choice
           label="Shadow preset"
+          displayLabel="Preset"
+          popover
           value={
-            ["none", "0 4px 12px #00000026", "0 8px 24px #00000040"].includes(
+            ["0 4px 12px #00000026", "0 8px 24px #00000040"].includes(
               effects.shadow,
             )
               ? effects.shadow
               : "custom"
           }
-          options={[
-            ["none", "None"],
-            ["0 4px 12px #00000026", "Soft"],
-            ["0 8px 24px #00000040", "Strong"],
-            ["custom", "Custom"],
+          items={[
+            {
+              value: "0 4px 12px #00000026",
+              label: "Soft",
+              icon: Layers,
+              hint: "4 / 12",
+              group: "Presets",
+            },
+            {
+              value: "0 8px 24px #00000040",
+              label: "Strong",
+              icon: Layers,
+              hint: "8 / 24",
+              group: "Presets",
+            },
+            {
+              value: "custom",
+              label: "Custom",
+              icon: Square,
+              hint: "CSS",
+              group: "Advanced",
+            },
           ]}
           onChange={(shadow) => {
-            if (shadow !== "custom") updateEffects(id, { shadow });
+            if (shadow !== "custom") update(id, { shadow });
           }}
         />
-      </div>
-      <ShadowField
-        value={effects.shadow}
-        onChange={(shadow) => updateEffects(id, { shadow })}
-      />
-    </InspectorSection>
+        <ShadowField
+          value={effects.shadow}
+          onChange={(shadow) => update(id, { shadow })}
+        />
+      </Feature>
+      <Section title="Blur">
+        <PropertyRow label="Amount">
+          <ScrubInput
+            label="Blur"
+            displayLabel="Blur"
+            min={0}
+            max={100}
+            value={effects.blur}
+            onChange={(blur) => update(id, { blur })}
+          />
+        </PropertyRow>
+      </Section>
+    </>
   );
 }
 
-function numeric(value: unknown, fallback = 0) {
-  return typeof value === "number" ? value : fallback;
+function ElementHeader({ element }: { element: EditorElement }) {
+  const cancelRename = useRef(false);
+  const rename = useEditorStore((state) => state.renameElement);
+  const [name, setName] = useState(element.name),
+    [focused, setFocused] = useState(false);
+  const Icon = element.componentId
+    ? Component
+    : element.type === "text"
+      ? Type
+      : element.type === "frame"
+        ? Frame
+        : Square;
+  const state = useEditorStore();
+  function parentOf(
+    nodes: EditorElement[],
+    parent?: EditorElement,
+  ): EditorElement | undefined {
+    for (const node of nodes) {
+      if (node.id === element.id) return parent;
+      const found = parentOf(node.children, node);
+      if (found) return found;
+    }
+  }
+  const parent = parentOf(state.elements);
+  const canAlign = parent && getLayoutMode(parent.styles) === "free";
+  function align(axis: "x" | "y", fraction: number) {
+    if (!parent || !canAlign) return;
+    const outer = document.querySelector<HTMLElement>(
+      `[data-editor-element="${CSS.escape(parent.id)}"]`,
+    );
+    const inner = document.querySelector<HTMLElement>(
+      `[data-editor-element="${CSS.escape(element.id)}"]`,
+    );
+    if (!outer || !inner) return;
+    const parentBounds = outer.getBoundingClientRect();
+    const bounds = inner.getBoundingClientRect();
+    const offset =
+      axis === "x"
+        ? (bounds.left - parentBounds.left) / state.canvasConfig.zoom -
+          outer.clientLeft +
+          outer.scrollLeft
+        : (bounds.top - parentBounds.top) / state.canvasConfig.zoom -
+          outer.clientTop +
+          outer.scrollTop;
+    const currentOffset = numeric(
+      axis === "x" ? element.styles.left : element.styles.top,
+    );
+    const size =
+      axis === "x"
+        ? outer.clientWidth - inner.offsetWidth
+        : outer.clientHeight - inner.offsetHeight;
+    state.updatePosition(
+      element.id,
+      axis === "x"
+        ? { left: currentOffset + size * fraction - offset }
+        : { top: currentOffset + size * fraction - offset },
+    );
+  }
+  return (
+    <div className="element-header">
+      <div className="element-identity">
+        <span className="element-type-icon">
+          <Icon size={16} />
+        </span>
+        <div>
+          <small>{element.componentRole ?? element.type}</small>
+          <input
+            className="element-name"
+            aria-label="Layer name"
+            value={focused ? name : element.name}
+            onFocus={() => {
+              setName(element.name);
+              cancelRename.current = false;
+              setFocused(true);
+            }}
+            onChange={(event) => setName(event.target.value)}
+            onBlur={() => {
+              if (!cancelRename.current) rename(element.id, name);
+              setFocused(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancelRename.current = true;
+                setName(element.name);
+                event.currentTarget.blur();
+              }
+            }}
+          />
+        </div>
+      </div>
+      <div
+        className="quick-alignment"
+        role="group"
+        aria-label="Quick alignment"
+      >
+        {(
+          [
+            ["Align Left", AlignLeft, "x", 0],
+            ["Align Center", AlignCenter, "x", 0.5],
+            ["Align Right", AlignRight, "x", 1],
+            ["Align Top", AlignStartVertical, "y", 0],
+            ["Align Middle", AlignCenterVertical, "y", 0.5],
+            ["Align Bottom", AlignEndVertical, "y", 1],
+          ] as const
+        ).map(([label, AlignIcon, axis, fraction]) => (
+          <button
+            type="button"
+            key={label}
+            aria-label={label}
+            title={
+              canAlign ? label : "Select a child in a Free layout to align"
+            }
+            disabled={!canAlign}
+            onClick={() => align(axis, fraction)}
+          >
+            <AlignIcon size={14} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function InspectorProperties({ element }: { element?: EditorElement }) {
-  const updateStyles = useEditorStore((state) => state.updateStyles);
-  const updatePosition = useEditorStore((state) => state.updatePosition);
-  const updateSize = useEditorStore((state) => state.updateSize);
-  const updateLayout = useEditorStore((state) => state.updateLayout);
-  const updateText = useEditorStore((state) => state.updateText);
-  const styles = element?.styles ?? {};
-  const id = element?.id ?? "";
-  const mode = getLayoutMode(styles);
+function InspectorProperties({ element }: { element: EditorElement }) {
+  const { updateStyles, updatePosition, updateSize, updateLayout, updateText } =
+    useEditorStore();
+  const styles = element.styles,
+    id = element.id,
+    mode = getLayoutMode(styles);
   const [measured, setMeasured] = useState({ width: 0, height: 0 });
   useEffect(() => {
-    if (!id) return;
     const node = document.querySelector<HTMLElement>(
       `[data-editor-element="${CSS.escape(id)}"]`,
     );
@@ -496,149 +677,143 @@ function InspectorProperties({ element }: { element?: EditorElement }) {
     observer.observe(node);
     return () => observer.disconnect();
   }, [id]);
-  const patch = (styles: CSSProperties) => updateStyles(id, styles);
+  const patch = (next: CSSProperties) => updateStyles(id, next);
+  const fill = Boolean(
+    styles.backgroundColor &&
+    styles.backgroundColor !== "transparent" &&
+    styles.backgroundColor !== "none",
+  );
+  const border = Boolean(styles.borderStyle && styles.borderStyle !== "none");
   return (
-    <fieldset
+    <div
       className="inspector-properties"
-      disabled={!element}
+      role="group"
       aria-label="Element properties"
     >
-      <InspectorSection title="Position">
-        <SelectField
+      <Section title="Position">
+        <Choice
           label="Position type"
-          displayLabel="Type"
+          displayLabel="Position"
           value={styles.position === "absolute" ? "absolute" : "relative"}
-          options={[
+          items={options([
             ["absolute", "Absolute"],
             ["relative", "Relative"],
-          ]}
+          ])}
           onChange={(position) =>
             updatePosition(id, {
               position: position as "absolute" | "relative",
             })
           }
         />
-        <div className="field-grid">
-          <NumberField
+        <PropertyRow label="Offset">
+          <ScrubInput
             label="X"
             value={numeric(styles.left)}
             onChange={(left) => updatePosition(id, { left })}
           />
-          <NumberField
+          <ScrubInput
             label="Y"
             value={numeric(styles.top)}
             onChange={(top) => updatePosition(id, { top })}
           />
-        </div>
-      </InspectorSection>
-      <InspectorSection title="Size">
-        <div className="field-grid">
-          <NumberField
+        </PropertyRow>
+      </Section>
+      <Section title="Size">
+        <PropertyRow label="Dimensions">
+          <ScrubInput
             label="Width"
             displayLabel="W"
             min={0}
             value={numeric(styles.width, measured.width)}
             onChange={(value) => updateSize(id, "width", value)}
           />
-          <NumberField
+          <ScrubInput
             label="Height"
             displayLabel="H"
             min={0}
             value={numeric(styles.height, measured.height)}
             onChange={(value) => updateSize(id, "height", value)}
           />
-          {(["width", "height"] as const).map((axis) => (
-            <SelectField
-              key={axis}
-              label={`${axis === "width" ? "Width" : "Height"} sizing`}
-              displayLabel={axis === "width" ? "Width" : "Height"}
-              value={getSizingMode(styles[axis])}
-              options={[
-                ["fixed", "Fixed"],
-                ["fill", "Fill"],
-                ["fit", "Fit"],
-              ]}
-              onChange={(value) =>
-                updateSize(
-                  id,
-                  axis,
-                  value === "fixed"
-                    ? measured[axis]
-                    : (value as "fill" | "fit"),
-                )
-              }
-            />
-          ))}
-        </div>
-      </InspectorSection>
-      <InspectorSection title="Layout">
-        <div className="layout-options" role="group" aria-label="Layout mode">
-          {(
-            [
-              ["free", "Free", Square],
-              ["stack", "Stack", Layers],
-              ["grid", "Grid", Grip],
-            ] as const
-          ).map(([value, label, Icon]) => (
-            <button
-              type="button"
-              key={value}
-              aria-pressed={mode === value}
-              onClick={() => updateLayout(id, value)}
-            >
-              <Icon size={10} aria-hidden="true" />
-              {label}
-            </button>
-          ))}
-        </div>
+        </PropertyRow>
+        {(["width", "height"] as const).map((axis) => (
+          <Choice
+            key={axis}
+            label={`${axis === "width" ? "Width" : "Height"} sizing`}
+            displayLabel={axis === "width" ? "Width" : "Height"}
+            value={getSizingMode(styles[axis])}
+            items={sizing}
+            onChange={(value) =>
+              updateSize(
+                id,
+                axis,
+                value === "fixed" ? measured[axis] : (value as "fill" | "fit"),
+              )
+            }
+          />
+        ))}
+      </Section>
+      <Section title="Layout">
+        <Choice
+          label="Layout mode"
+          displayLabel="Layout"
+          value={mode}
+          items={layouts}
+          onChange={(value) =>
+            updateLayout(id, value as "free" | "stack" | "grid")
+          }
+        />
         {mode !== "free" && (
           <>
             {mode === "stack" ? (
-              <SelectField
+              <Choice
                 label="Direction"
                 value={styles.flexDirection ?? "column"}
-                options={[
-                  ["row", "Horizontal"],
-                  ["column", "Vertical"],
+                items={[
+                  { value: "row", label: "Row", icon: ArrowRight },
+                  { value: "column", label: "Column", icon: ArrowDown },
                 ]}
                 onChange={(value) =>
                   patch({ flexDirection: value as "row" | "column" })
                 }
               />
             ) : (
-              <NumberField
-                label="Columns"
-                value={Number(
-                  String(styles.gridTemplateColumns ?? "").match(
-                    /repeat\((\d+)/,
-                  )?.[1] ?? 2,
-                )}
-                min={1}
-                max={12}
-                onChange={(value) => {
-                  if (Number.isInteger(value))
-                    patch({
-                      gridTemplateColumns: `repeat(${value}, minmax(0, 1fr))`,
-                    });
-                }}
-              />
+              <PropertyRow label="Columns">
+                <ScrubInput
+                  label="Columns"
+                  displayLabel="#"
+                  unit=""
+                  min={1}
+                  max={12}
+                  value={Number(
+                    String(styles.gridTemplateColumns ?? "").match(
+                      /repeat\((\d+)/,
+                    )?.[1] ?? 2,
+                  )}
+                  onChange={(value) => {
+                    if (Number.isInteger(value))
+                      patch({
+                        gridTemplateColumns: `repeat(${value}, minmax(0, 1fr))`,
+                      });
+                  }}
+                />
+              </PropertyRow>
             )}
-            <div className="field-grid inspector-spaced">
-              <NumberField
+            <PropertyRow label="Spacing">
+              <ScrubInput
                 label="Gap"
                 min={0}
                 value={numeric(styles.gap)}
                 onChange={(gap) => patch({ gap })}
               />
-              <NumberField
+              <ScrubInput
                 label="Padding"
+                displayLabel="Pad"
                 min={0}
                 value={numeric(styles.padding)}
                 onChange={(padding) => patch({ padding })}
               />
-            </div>
-            <div className="property-row inspector-spaced">
-              <span>Alignment</span>
+            </PropertyRow>
+            <PropertyRow label="Alignment">
               <div
                 className="alignment-icons"
                 role="group"
@@ -646,181 +821,257 @@ function InspectorProperties({ element }: { element?: EditorElement }) {
               >
                 {(
                   [
-                    ["flex-start", "Main start", ArrowLeft],
-                    ["center", "Main center", StretchHorizontal],
-                    ["flex-end", "Main end", ArrowRight],
+                    ["flex-start", "Main start", ArrowLeft, "justifyContent"],
+                    ["center", "Main center", AlignCenter, "justifyContent"],
+                    ["flex-end", "Main end", ArrowRight, "justifyContent"],
+                    ["flex-start", "Cross start", ArrowUp, "alignItems"],
+                    [
+                      "center",
+                      "Cross center",
+                      AlignCenterVertical,
+                      "alignItems",
+                    ],
+                    ["flex-end", "Cross end", ArrowDown, "alignItems"],
                   ] as const
-                ).map(([value, label, Icon]) => (
+                ).map(([value, label, Icon, key]) => (
                   <button
                     type="button"
                     key={label}
                     aria-label={label}
                     title={label}
-                    aria-pressed={
-                      (styles.justifyContent ?? "flex-start") === value
-                    }
-                    onClick={() => patch({ justifyContent: value })}
+                    aria-pressed={(styles[key] ?? "flex-start") === value}
+                    onClick={() => patch({ [key]: value })}
                   >
-                    <Icon size={12} aria-hidden="true" />
-                  </button>
-                ))}
-                {(
-                  [
-                    ["flex-start", "Cross start", ArrowUp],
-                    ["center", "Cross center", StretchHorizontal],
-                    ["flex-end", "Cross end", ArrowDown],
-                  ] as const
-                ).map(([value, label, Icon]) => (
-                  <button
-                    type="button"
-                    key={label}
-                    aria-label={label}
-                    title={label}
-                    aria-pressed={styles.alignItems === value}
-                    onClick={() => patch({ alignItems: value })}
-                  >
-                    <Icon size={12} aria-hidden="true" />
+                    <Icon size={12} />
                   </button>
                 ))}
               </div>
-            </div>
+            </PropertyRow>
           </>
         )}
-      </InspectorSection>
-      <InspectorSection title="Styles">
-        <ColorField
-          label="Fill"
-          value={String(styles.backgroundColor ?? "transparent")}
-          clearable
-          onChange={(backgroundColor) => patch({ backgroundColor })}
-        />
-        <label className="opacity-slider">
-          <span>Opacity</span>
-          <input
-            type="range"
-            aria-label="Opacity slider"
-            style={
-              {
-                "--opacity-progress": `${numeric(styles.opacity, 1) * 100}%`,
-              } as CSSProperties
-            }
-            min={0}
-            max={100}
-            step={1}
-            value={numeric(styles.opacity, 1) * 100}
-            onChange={(event) =>
-              patch({ opacity: event.target.valueAsNumber / 100 })
-            }
-          />
-        </label>
-        <div className="field-grid inspector-spaced">
-          <NumberField
+      </Section>
+      <Section title="Appearance">
+        <PropertyRow label="Opacity">
+          <ScrubInput
             label="Opacity"
-            displayLabel="Opacity %"
-            value={Number((numeric(styles.opacity, 1) * 100).toFixed(2))}
+            displayLabel="α"
+            unit="%"
             min={0}
             max={100}
+            value={Number((numeric(styles.opacity, 1) * 100).toFixed(2))}
             onChange={(value) => patch({ opacity: value / 100 })}
           />
-          <NumberField
+        </PropertyRow>
+        <PropertyRow label="Radius">
+          <ScrubInput
             label="Radius"
-            value={numeric(styles.borderRadius)}
+            displayLabel="R"
             min={0}
+            value={numeric(styles.borderRadius)}
             onChange={(borderRadius) => patch({ borderRadius })}
           />
-        </div>
-        <div className="inspector-spaced">
-          <SelectField
-            label="Border"
-            value={styles.borderStyle ?? "none"}
-            options={[
-              ["none", "None"],
-              ["solid", "Solid"],
-              ["dashed", "Dashed"],
-              ["dotted", "Dotted"],
-            ]}
-            onChange={(value) =>
-              patch({
-                borderStyle: value,
-                borderWidth: styles.borderWidth ?? 1,
-                borderColor: styles.borderColor ?? "#000000",
-              })
-            }
-          />
-          <NumberField
+        </PropertyRow>
+      </Section>
+      <Feature
+        title="Fill"
+        active={fill}
+        onToggle={() =>
+          patch({ backgroundColor: fill ? "transparent" : "#ffffff" })
+        }
+      >
+        <ColorField
+          label="Fill"
+          value={String(styles.backgroundColor ?? "#ffffff")}
+          onChange={(backgroundColor) => patch({ backgroundColor })}
+        />
+      </Feature>
+      <Feature
+        title="Border"
+        active={border}
+        onToggle={() =>
+          patch({
+            borderStyle: border ? "none" : "solid",
+            borderWidth: styles.borderWidth || 1,
+            borderColor: styles.borderColor ?? "#333333",
+          })
+        }
+      >
+        <Choice
+          label="Border"
+          displayLabel="Style"
+          popover
+          value={styles.borderStyle ?? "solid"}
+          items={[
+            {
+              value: "solid",
+              label: "Solid",
+              icon: Square,
+              hint: "Continuous",
+              group: "Line style",
+            },
+            {
+              value: "dashed",
+              label: "Dashed",
+              icon: Square,
+              hint: "Segments",
+              group: "Line style",
+            },
+            {
+              value: "dotted",
+              label: "Dotted",
+              icon: Grip,
+              hint: "Dots",
+              group: "Line style",
+            },
+          ]}
+          onChange={(borderStyle) => patch({ borderStyle })}
+        />
+        <PropertyRow label="Weight">
+          <ScrubInput
             label="Border width"
-            value={numeric(styles.borderWidth)}
+            displayLabel="W"
             min={0}
-            onChange={(borderWidth) =>
-              patch({
-                borderWidth,
-                borderStyle:
-                  styles.borderStyle && styles.borderStyle !== "none"
-                    ? styles.borderStyle
-                    : "solid",
-              })
-            }
+            value={numeric(styles.borderWidth, 1)}
+            onChange={(borderWidth) => patch({ borderWidth })}
           />
-          <ColorField
-            label="Border color"
-            value={String(styles.borderColor ?? "#000000")}
-            onChange={(borderColor) => patch({ borderColor })}
-          />
-        </div>
-      </InspectorSection>
-      {element?.type === "text" && (
-        <InspectorSection title="Typography">
-          <label className="inspector-text-label">
-            Content
+        </PropertyRow>
+        <ColorField
+          label="Border color"
+          value={String(styles.borderColor ?? "#333333")}
+          onChange={(borderColor) => patch({ borderColor })}
+        />
+      </Feature>
+      {element.type === "text" && (
+        <Section title="Typography">
+          <PropertyRow label="Content">
             <textarea
+              className="text-control"
               aria-label="Text content"
               value={element.content ?? element.name}
               onChange={(event) => updateText(id, event.target.value)}
             />
-          </label>
-          <div className="field-grid inspector-spaced">
-            <NumberField
+          </PropertyRow>
+          <PropertyRow label="Font size">
+            <ScrubInput
               label="Font size"
+              displayLabel="T"
               min={1}
               value={numeric(styles.fontSize, 16)}
               onChange={(fontSize) => patch({ fontSize })}
             />
-            <SelectField
-              label="Weight"
-              value={String(styles.fontWeight ?? 400)}
-              options={Array.from(
-                { length: 9 },
-                (_, index) =>
-                  [
-                    String((index + 1) * 100),
-                    String((index + 1) * 100),
-                  ] as const,
-              )}
-              onChange={(value) => patch({ fontWeight: Number(value) })}
-            />
-          </div>
+          </PropertyRow>
+          <Choice
+            label="Weight"
+            popover
+            value={String(styles.fontWeight ?? 400)}
+            items={Array.from({ length: 9 }, (_, index) => ({
+              value: String((index + 1) * 100),
+              label: String((index + 1) * 100),
+              icon: Type,
+              hint: [
+                "Thin",
+                "Extra light",
+                "Light",
+                "Regular",
+                "Medium",
+                "Semibold",
+                "Bold",
+                "Extra bold",
+                "Black",
+              ][index],
+              group: index < 4 ? "Text" : "Emphasis",
+            }))}
+            onChange={(value) => patch({ fontWeight: Number(value) })}
+          />
           <ColorField
             label="Text color"
             value={String(styles.color ?? "#111111")}
             onChange={(color) => patch({ color })}
           />
-          <SelectField
+          <Choice
             label="Text alignment"
+            displayLabel="Align"
             value={styles.textAlign ?? "left"}
-            options={[
+            items={options([
               ["left", "Left"],
               ["center", "Center"],
               ["right", "Right"],
               ["justify", "Justify"],
-            ]}
+            ])}
             onChange={(value) =>
               patch({ textAlign: value as CSSProperties["textAlign"] })
             }
           />
-        </InspectorSection>
+        </Section>
       )}
-      <EffectsInspector element={element} />
-    </fieldset>
+      <section aria-label="Effects & Animations">
+        <EffectsInspector element={element} />
+      </section>
+    </div>
+  );
+}
+
+function CanvasSettings() {
+  const state = useEditorStore();
+  const insert = (type: "frame" | "text", stack = false) => {
+    const root = state.elements.find((item) => item.type === "frame");
+    state.beginHistory();
+    const id = state.addElement(root?.id ?? null, type, { x: 40, y: 40 });
+    if (id && stack) state.updateLayout(id, "stack");
+    state.endHistory();
+  };
+  return (
+    <div className="canvas-settings">
+      <div className="canvas-settings-intro">
+        <MousePointer2 size={22} />
+        <h3>Canvas Settings</h3>
+        <p>Select a layer to inspect it, or start with something new.</p>
+      </div>
+      <Section title="Workspace">
+        <ColorField
+          label="Background"
+          value={state.canvasBackground}
+          onChange={state.setCanvasBackground}
+        />
+        <PropertyRow label="Zoom">
+          <ScrubInput
+            label="Canvas zoom"
+            displayLabel="Z"
+            unit="%"
+            min={25}
+            max={200}
+            value={Math.round(state.canvasConfig.zoom * 100)}
+            onChange={(value) => state.setZoom(value / 100)}
+          />
+        </PropertyRow>
+      </Section>
+      <Section title="Quick insert">
+        <div className="quick-insert">
+          {[
+            ["Frame", Frame, () => insert("frame")],
+            ["Text", Type, () => insert("text")],
+            ["Stack", Layers, () => insert("frame", true)],
+          ].map(([label, Icon, action]) => {
+            const I = Icon as typeof Frame;
+            return (
+              <button
+                type="button"
+                key={String(label)}
+                onClick={action as () => void}
+              >
+                <I size={16} />
+                <span>{String(label)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+      <div className="canvas-settings-tip">
+        <kbd>F</kbd> Frame <kbd>T</kbd> Text <kbd>S</kbd> Stack
+        <br />
+        <kbd>Space</kbd> + drag to pan
+      </div>
+    </div>
   );
 }
 
@@ -836,43 +1087,39 @@ export function InspectorPanel() {
       className="inspector-panel"
       onFocusCapture={(event) => {
         if (
-          event.target instanceof HTMLInputElement ||
-          event.target instanceof HTMLTextAreaElement
+          (event.target instanceof HTMLInputElement ||
+            event.target instanceof HTMLTextAreaElement) &&
+          event.target.type !== "number"
         )
           useEditorStore.getState().beginHistory();
       }}
       onBlurCapture={(event) => {
         if (
-          event.target instanceof HTMLInputElement ||
-          event.target instanceof HTMLTextAreaElement
+          (event.target instanceof HTMLInputElement ||
+            event.target instanceof HTMLTextAreaElement) &&
+          event.target.type !== "number"
         )
           useEditorStore.getState().endHistory();
       }}
     >
       <div className="panel-heading">
-        <h2>Inspector</h2>
-        <Settings2 size={13} className="muted" aria-hidden="true" />
+        <h2>{selected ? "Design" : "Canvas"}</h2>
+        <span className="panel-heading-hint">
+          {selected ? "Live properties" : "Workspace"}
+        </span>
       </div>
       <div className="inspector-scroll">
-        <div className="inspector-empty">
-          <span className="inspector-selection-icon">
-            <MousePointer2 size={13} aria-hidden="true" />
-          </span>
-          <div>
-            <p>{selected?.name ?? "Nothing selected"}</p>
-            <p className="muted">
-              {selected
-                ? "Changes apply live"
-                : "Select an element to edit its properties"}
-            </p>
-          </div>
-        </div>
-        <InspectorProperties key={selected?.id ?? "none"} element={selected} />
+        {selected ? (
+          <>
+            <ElementHeader key={`name-${selected.id}`} element={selected} />
+            <InspectorProperties key={selected.id} element={selected} />
+          </>
+        ) : (
+          <CanvasSettings />
+        )}
       </div>
       <footer className="panel-footer inspector-footer">
-        <span className="small-brand" aria-hidden="true">
-          Z
-        </span>
+        <span className="small-brand">Z</span>
         <span>ZamnCraft</span>
         <span className="editor-badge">Editor</span>
       </footer>

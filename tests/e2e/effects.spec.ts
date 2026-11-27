@@ -1,3 +1,4 @@
+import { choose } from "./control-helpers";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const panel = (page: Page) =>
@@ -90,7 +91,7 @@ test("Inspector effects are selection-bound; replay uses configured appear keyfr
       name: "Appear enabled",
       exact: true,
     }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
   const { node } = await setup(page);
   const before = await node.getAttribute("style");
   await appear(page);
@@ -225,9 +226,10 @@ test("spring stiffness and damping produce a native spring curve with visible ov
     .getByRole("checkbox", { name: "Hover enabled", exact: true })
     .check();
   await number(page, "Hover scale", 1.3);
-  await effects(page)
-    .getByRole("combobox", { name: "Transition", exact: true })
-    .selectOption("spring");
+  await choose(
+    effects(page).getByRole("group", { name: "Transition", exact: true }),
+    "spring",
+  );
   await number(page, "Spring stiffness", 100);
   await number(page, "Spring damping", 5);
   await page.getByRole("button", { name: "Preview site", exact: true }).click();
@@ -251,8 +253,8 @@ test("spring stiffness and damping produce a native spring curve with visible ov
     const animation = node.getAnimations()[0];
     animation.pause();
     const timing = animation.effect!.getTiming();
-    const values = timing.easing!
-      .slice(7, -1)
+    const values = timing
+      .easing!.slice(7, -1)
       .split(",")
       .map((value) => parseFloat(value));
     const peak = values.indexOf(Math.max(...values));
@@ -274,8 +276,12 @@ test("blur and shadow bind in both modes while invalid shadow drafts revert safe
   const { node } = await setup(page);
   await number(page, "Blur", 2);
   await effects(page)
-    .getByRole("combobox", { name: "Shadow preset", exact: true })
-    .selectOption("0 8px 24px #00000040");
+    .getByRole("button", { name: "Add shadow", exact: true })
+    .click();
+  await choose(
+    effects(page).getByRole("combobox", { name: "Shadow preset", exact: true }),
+    "0 8px 24px #00000040",
+  );
   await expect(node).toHaveCSS("filter", "blur(2px)");
   await expect(node).toHaveCSS(
     "box-shadow",
@@ -297,8 +303,8 @@ test("blur and shadow bind in both modes while invalid shadow drafts revert safe
   await page.keyboard.press("Escape");
   await number(page, "Blur", 0);
   await effects(page)
-    .getByRole("combobox", { name: "Shadow preset", exact: true })
-    .selectOption("none");
+    .getByRole("button", { name: "Remove shadow", exact: true })
+    .click();
   await expect(node).toHaveCSS("filter", "none");
   await expect(node).toHaveCSS("box-shadow", "none");
 });
@@ -350,6 +356,9 @@ test("narrow screens can configure effects and enter/exit a full-width live prev
   await dialog
     .getByRole("spinbutton", { name: "Appear Y offset", exact: true })
     .fill("12");
+  await dialog
+    .getByRole("spinbutton", { name: "Appear Y offset", exact: true })
+    .blur();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Preview site", exact: true }).click();
   const preview = page.getByRole("region", {

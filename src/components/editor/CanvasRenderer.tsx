@@ -118,6 +118,10 @@ const ElementNode = memo(function ElementNodeView({
       return;
     }
     const state = useEditorStore.getState();
+    if (state.activeTool === "hand") {
+      event.stopPropagation();
+      return;
+    }
     if (state.activeTool === "select") {
       event.stopPropagation();
       state.setSelectedElementId(element.id);

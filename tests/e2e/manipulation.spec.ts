@@ -1,3 +1,4 @@
+import { choose, expectChoice } from "./control-helpers";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
@@ -203,24 +204,28 @@ test("resize cannot flip or create negative dimensions and Escape restores Fill/
     name: "Inspector",
     exact: true,
   });
-  await panel
-    .getByRole("combobox", { name: "Width sizing", exact: true })
-    .selectOption("fill");
+  await choose(
+    panel.getByRole("group", { name: "Width sizing", exact: true }),
+    "fill",
+  );
   const before = await geometry(text);
   await page.keyboard.down("Alt");
   let point = await beginHandle(page, text, "e");
   await page.mouse.move(point.x - 50, point.y);
-  await expect(
-    panel.getByRole("combobox", { name: "Width sizing", exact: true }),
-  ).toHaveValue("fixed");
+  await expectChoice(
+    panel.getByRole("group", { name: "Width sizing", exact: true }),
+    "fixed",
+  );
   await page.keyboard.press("Escape");
   await page.mouse.up();
-  await expect(
-    panel.getByRole("combobox", { name: "Width sizing", exact: true }),
-  ).toHaveValue("fill");
-  await expect(
-    panel.getByRole("combobox", { name: "Height sizing", exact: true }),
-  ).toHaveValue("fit");
+  await expectChoice(
+    panel.getByRole("group", { name: "Width sizing", exact: true }),
+    "fill",
+  );
+  await expectChoice(
+    panel.getByRole("group", { name: "Height sizing", exact: true }),
+    "fit",
+  );
   expect(await geometry(text)).toEqual(before);
   point = await beginHandle(page, text, "nw");
   await page.mouse.move(point.x + 500, point.y + 300, { steps: 5 });
@@ -411,6 +416,7 @@ test("bordered elements keep constant-size handles on their actual outer corners
   page,
 }) => {
   const child = await add(page, root(page), "Frame", 200, 200);
+  await page.getByRole("button", { name: "Add border", exact: true }).click();
   await setNumber(page, "Border width", 6);
   for (const count of [0, 1, 2]) {
     if (count)

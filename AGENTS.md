@@ -57,3 +57,7 @@ Source: [heydamir/unslop](https://github.com/heydamir/unslop), pinned to
 The full upstream skill folder is copied unchanged into `.agents/skills/unslop/`.
 License: [CC BY 4.0](.agents/skills/unslop/LICENSE).
 Snapshot and story scripts are included but their optional Playwright/Chromium and ffmpeg dependencies are not installed or executed by this setup.
+
+## Current visual direction (user override)
+
+The user explicitly approved a comprehensive UI3/Framer-style editor overhaul, superseding the earlier Step 1 visual lock. Preserve editing behavior and saved documents; use compact scrub controls, custom menus, progressive Inspector sections, and a grouped toolbar.
