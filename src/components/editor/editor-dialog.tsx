@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { Code2, File, X } from "lucide-react";
+import { File, X } from "lucide-react";
+import { CodeExport } from "./code-export";
 import { IconButton, tools } from "./editor-controls";
 import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
@@ -16,12 +17,6 @@ const titles: Record<EditorDialogKind, string> = {
 };
 
 const emptyStates = {
-  export: {
-    icon: Code2,
-    heading: "Something great is on its way.",
-    description:
-      "Your Desktop frame is ready. Code generation will be added in a later step.",
-  },
   project: {
     icon: File,
     heading: "A new beginning.",
@@ -63,7 +58,7 @@ export function EditorDialog({
   return (
     <dialog
       ref={ref}
-      className="editor-dialog"
+      className={`editor-dialog ${kind === "export" ? "export-dialog" : ""}`}
       aria-labelledby="editor-dialog-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -79,7 +74,9 @@ export function EditorDialog({
           onClick={onDismiss}
         />
       </div>
-      {kind === "navigation" ? (
+      {kind === "export" ? (
+        <CodeExport />
+      ) : kind === "navigation" ? (
         <NavigationPanel onHelp={onHelp} />
       ) : kind === "inspector" ? (
         <InspectorPanel />
@@ -117,7 +114,9 @@ export function EditorDialog({
             to turn a selected subtree into a master. Insert linked instances
             from Assets; edits to the master update them across pages. Detach an
             instance to edit it independently. Pages supports adding, renaming,
-            deleting, and switching page canvases. Changes apply immediately.
+            deleting, and switching page canvases. Export Code generates React,
+            Vue, Svelte, or HTML/CSS for the current page, with copy and
+            download controls. Changes apply immediately.
           </p>
         </div>
       ) : (

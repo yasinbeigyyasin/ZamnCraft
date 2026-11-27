@@ -136,7 +136,7 @@ test("dialogs keep the page inert, suspend shortcuts, close with Escape, and res
   await expect(close).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
-    dialog.getByRole("button", { name: "Back to editor" }),
+    dialog.getByRole("tab", { name: "React", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Shift+Tab");
   await expect(close).toBeFocused();

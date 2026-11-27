@@ -48,7 +48,7 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Steps 3–8: canvas, layers, Inspector, components, and pages
+## Steps 3–9: canvas, components, pages, and code export
 
 The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
@@ -74,7 +74,7 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 
 Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
 
-Play opens a live interactive preview. Code generation is still unavailable. State is session-only, with no backend, undo history, or persistence. Position and size can be changed through the Inspector or directly on the canvas.
+Play opens a live interactive preview. Export Code generates a file for the current page. State is session-only, with no backend, undo history, or persistence. Position and size can be changed through the Inspector or directly on the canvas.
 
 ## Interactive Layers panel
 
@@ -99,7 +99,7 @@ Select an element on the canvas or in Layers. The existing Inspector updates imm
 
 `updateStyles(id, patch)` merges CSS properties immutably. `updatePosition(id, patch)`, `updateSize(id, axis, number | "fill" | "fit")`, and `updateLayout(id, "free" | "stack" | "grid")` provide property-specific actions. `updateText(id, content)` remains the shared text action. Unknown IDs, non-finite numbers, negative dimensions/spacing, and out-of-range opacity are ignored. Unrelated branches and selection are preserved. Both store import paths reference a single instance.
 
-Effects editing, persistence, and undo remain out of scope. Refresh still resets the session.
+Persistence and undo remain out of scope. Refresh still resets the session.
 
 ## Direct canvas manipulation
 
@@ -145,9 +145,28 @@ Each page owns an independent root element tree and editing camera; new pages be
 
 Pages and Assets remain accessible through the navigation dialog on narrow screens. Page/component management is suspended in preview. This is editor-only page management, not published routes or cross-page link navigation. All pages and components are still session-only: refresh clears them; there is no persistence or undo history yet.
 
+## Multi-framework code export
+
+Click **Export Code** to open the current page's generated source. Framework tabs support arrow keys, Home, and End. The read-only syntax-styled viewer supports text selection (Ctrl/Cmd+A selects its code), **Copy Code** with Copied! feedback, and **Download File**. If clipboard access is blocked, use text selection or download. Escape closes the modal and restores toolbar focus; editor gestures/shortcuts stay suspended while it is open.
+
+| Target | Download | Setup |
+| --- | --- | --- |
+| React / Next.js | `Page.tsx` | Existing React/Next project with Tailwind CSS; `npm install framer-motion` for effects. Includes `"use client"`, Tailwind layout utilities, embedded exact-value CSS, reusable functions, and Framer Motion appear/hover/tap transitions. |
+| Vue 3 | `Page.vue` | Vue SFC tooling. Includes template, TypeScript script setup, style block, and reusable local render components. |
+| Svelte | `Page.svelte` | Svelte 5 with TypeScript support. Uses reusable snippets and an embedded style block. |
+| HTML/CSS | `index.html` | Open directly in a browser. Standalone HTML with embedded CSS; component instances become ordinary markup. |
+
+`generateCode(elements, framework)` in `src/lib/code-generator.ts` is a pure, deterministic compiler: stable names and sorted style properties, no UUIDs, timestamps, canvas camera, selection handles, or editor runtime. It preserves Free/Stack/Grid, root and parent-local positions, fixed/Fill/Fit sizing, typography, borders, fills, opacity, blur, shadow, and current instance content. Equivalent linked component trees share definitions in framework exports; local overrides produce separate variants rather than silently being discarded. Only components present on the active page are emitted.
+
+Generated CSS is scoped under a deterministic design-specific class. React uses Tailwind utilities for layout plus CSS declarations for exact editor values. Vue, Svelte, and HTML use native CSS appear keyframes, hover/active selectors, and sampled spring easing (with ease-out fallback). All targets respect reduced-motion preferences. Content remains literal text; markup/template/script delimiters and CSS boundary characters are escaped, never evaluated by the viewer.
+
+Exports represent the current page at its original 1200 × 800 canvas reference size; responsive Fill/Stack/Grid values are preserved, but the compiler does not invent breakpoints. This is a page/component source file, not a complete project, ZIP, multi-page router, or backend. Browser-native CSS and Framer Motion use their respective interaction/physics engines. Web fonts/assets not stored in the document must be supplied by the consuming app. Session data still clears on refresh; exporting source is not an editable project save format.
+
+Tests include deterministic/escaping fixtures, strict generated React typechecking, Vue/Svelte compiler validation, and real browser mounts of React/Vue/Svelte output plus standalone HTML interaction checks. Framework compilers/runtimes and esbuild are **development-only test dependencies**; none are bundled into the editor's export engine.
+
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–8 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–9 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
@@ -155,6 +174,8 @@ Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned ski
 - `src/components/editor/canvas.tsx`: world transform, gesture guards, pan, zoom, and fit view.
 - `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, eight resize handles, and inline text editing.
 - `src/components/editor/use-canvas-manipulation.ts`: pointer capture, movement, resizing, snap targets, and cancellation.
+- `src/lib/code-generator.ts`: deterministic four-target page compiler and output metadata.
+- `src/components/editor/code-export.tsx`: framework tabs, safe code highlighting, clipboard, and downloads.
 - `src/lib/editor-components.ts`: component ownership, instance cloning, detachment, and propagation.
 - `src/components/editor/sidebar-library.tsx`: Pages CRUD and Assets management.
 - `src/lib/element-effects.ts`: independent effect defaults, validated patches, and spring sampling.
