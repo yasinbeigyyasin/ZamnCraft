@@ -253,6 +253,7 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
   if (
     !record(data) ||
     data.version !== 1 ||
+    (data.desktopSizeVersion !== undefined && data.desktopSizeVersion !== 1) ||
     (data.canvasBackground !== undefined &&
       (typeof data.canvasBackground !== "string" ||
         !/^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(
@@ -417,7 +418,44 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
       ? { canvasBackground: data.canvasBackground as string }
       : {}),
     projectTitle: data.projectTitle,
-    pages,
+    pages:
+      data.desktopSizeVersion === 1
+        ? pages
+        : pages.map((page) => {
+            const desktop = page.elements.find(
+              (root) =>
+                root.breakpoint === "desktop" &&
+                !root.componentId &&
+                root.styles.width === 1200 &&
+                root.styles.height === 800,
+            );
+            if (!desktop) return page;
+            const oldRight =
+              (typeof desktop.styles.left === "number"
+                ? desktop.styles.left
+                : 0) + 1200;
+            return {
+              ...page,
+              elements: page.elements.map((root) =>
+                root.id === desktop.id
+                  ? {
+                      ...root,
+                      styles: { ...root.styles, width: 1920, height: 1080 },
+                    }
+                  : root.type === "frame" &&
+                      typeof root.styles.left === "number" &&
+                      root.styles.left >= oldRight
+                    ? {
+                        ...root,
+                        styles: {
+                          ...root.styles,
+                          left: Math.min(10000000, root.styles.left + 720),
+                        },
+                      }
+                    : root,
+              ),
+            };
+          }),
     components,
     activePageId: data.activePageId,
   };
@@ -426,6 +464,7 @@ export function parseWorkspace(serialized: string): WorkspaceDocument {
 export function serializeWorkspace(document: WorkspaceDocument): string {
   return JSON.stringify({
     version: 1,
+    desktopSizeVersion: 1,
     canvasBackground: document.canvasBackground,
     projectTitle: document.projectTitle,
     pages: document.pages,

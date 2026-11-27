@@ -298,3 +298,65 @@ test("multiple custom-size desktops persist without duplicate responsive breakpo
   assert.equal(store().elements[0].styles.width, 1920);
   assert.equal(store().elements[0].children.length, 0);
 });
+
+test("legacy default desktops upgrade once to Full HD without changing layers or custom sizes", () => {
+  const text = store().addElement("desktop", "text", { x: 20, y: 40 })!;
+  store().updateText(text, "Keep my work");
+  store().addBreakpoint("tablet");
+  const custom = store().addDesktop(1366, 768)!;
+  const distant = store().addDesktop(1600, 900)!;
+  store().updateStyles(distant, { left: 10000000 });
+  store().updateStyles("desktop", { width: 1200, height: 800 });
+  const legacy = JSON.parse(serializeWorkspace(store()));
+  delete legacy.desktopSizeVersion;
+  legacy.pages[0].elements.find(
+    (root: EditorElement) => root.breakpoint === "tablet",
+  ).styles.left = 1280;
+  const before = structuredClone(legacy);
+  const upgraded = parseWorkspace(JSON.stringify(legacy));
+  const desktop = upgraded.pages[0].elements[0];
+  assert.equal(desktop.styles.width, 1920);
+  assert.equal(desktop.styles.height, 1080);
+  assert.deepEqual(desktop.children, before.pages[0].elements[0].children);
+  assert.deepEqual(
+    upgraded.pages[0].canvasConfig,
+    before.pages[0].canvasConfig,
+  );
+  assert.equal(
+    upgraded.pages[0].elements.find((root) => root.breakpoint === "tablet")!
+      .styles.left,
+    2000,
+  );
+  assert.equal(
+    findElementById(upgraded.pages[0].elements, custom)!.styles.width,
+    1366,
+  );
+  assert.equal(
+    findElementById(upgraded.pages[0].elements, custom)!.styles.height,
+    768,
+  );
+  assert.equal(
+    findElementById(upgraded.pages[0].elements, distant)!.styles.left,
+    10000000,
+  );
+  assert.deepEqual(legacy, before);
+  assert.deepEqual(parseWorkspace(serializeWorkspace(upgraded)), upgraded);
+  desktop.styles.width = 1200;
+  desktop.styles.height = 800;
+  const resized = parseWorkspace(serializeWorkspace(upgraded));
+  assert.equal(resized.pages[0].elements[0].styles.width, 1200);
+  assert.equal(resized.pages[0].elements[0].styles.height, 800);
+});
+
+test("legacy desktops with deliberately different dimensions are not resized", () => {
+  const legacy = JSON.parse(serializeWorkspace(createWorkspace()));
+  delete legacy.desktopSizeVersion;
+  legacy.pages[0].elements[0].styles.width = 1440;
+  legacy.pages[0].elements[0].styles.height = 900;
+  assert.equal(
+    parseWorkspace(JSON.stringify(legacy)).pages[0].elements[0].styles.width,
+    1440,
+  );
+  legacy.desktopSizeVersion = 2;
+  assert.throws(() => parseWorkspace(JSON.stringify(legacy)));
+});

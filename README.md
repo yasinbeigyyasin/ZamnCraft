@@ -214,7 +214,7 @@ The website editor chrome now follows the original reference in `figma/zamncraft
 
 This changes the editor's presentation, not saved project data. Canvas content retains its previous Arial fallback so authored text and code exports do not silently reflow when the editor font changes. The importer’s sample pages/layers are not automatically inserted; use **Local workspace → Load Landing Page Starter** if you want example content. On small screens navigation and Inspector remain accessible through dialogs rather than squeezing desktop panels into the viewport. Inter's bundled Latin variable font is licensed under the SIL Open Font License (`src/app/fonts/OFL.txt`); the site makes no external font request.
 
-New workspaces and pages use a 1920 × 1080 main Desktop. Existing saved frame dimensions are preserved on load.
+New workspaces and pages use a 1920 × 1080 main Desktop. Older saved workspaces upgrade their original 1200 × 800 Desktop to 1920 × 1080 once, without scaling or replacing its layers. Other custom dimensions stay unchanged, and subsequent manual resizing is preserved. Frames to its right shift by 720px to retain their spacing.
 
 
 ## Floating canvas tools and vectors
