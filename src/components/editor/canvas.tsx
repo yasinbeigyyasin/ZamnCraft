@@ -14,6 +14,7 @@ import {
   useEditorStore,
   type Point,
 } from "@/store/useEditorStore";
+import { BREAKPOINTS } from "@/lib/workspace";
 import { IconButton, tools } from "./editor-controls";
 import { CanvasRenderer } from "./CanvasRenderer";
 import { useCanvasManipulation } from "./use-canvas-manipulation";
@@ -36,6 +37,8 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       "Home",
   );
   const preview = useEditorStore((state) => state.isPreviewMode);
+  const previewRootId = useEditorStore((state) => state.previewRootId);
+  const elements = useEditorStore((state) => state.elements);
   const { zoom, pan } = canvasConfig;
   const viewportRef = useRef<HTMLElement>(null);
   const fittedPages = useRef(new Set<string>());
@@ -77,32 +80,52 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     setIsPanning(false);
   }, []);
 
-  const fitToView = useCallback(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    const { width, height } = viewport.getBoundingClientRect();
-    const root = useEditorStore.getState().elements[0];
-    if (!root || width <= 0 || height <= 0) return;
-    const rootWidth =
-      typeof root.styles.width === "number" ? root.styles.width : 1200;
-    const rootHeight =
-      typeof root.styles.height === "number" ? root.styles.height : 800;
-    const nextZoom = Math.max(
-      MIN_ZOOM,
-      Math.min(1, (width - 96) / rootWidth, (height - 144) / rootHeight),
-    );
-    setZoom(nextZoom);
-    setPan({
-      x:
-        (width - rootWidth * nextZoom) / 2 -
-        (typeof root.styles.left === "number"
-          ? root.styles.left * nextZoom
-          : 0),
-      y:
-        (height - rootHeight * nextZoom) / 2 -
-        (typeof root.styles.top === "number" ? root.styles.top * nextZoom : 0),
-    });
-  }, [setPan, setZoom]);
+  const fitToView = useCallback(
+    (focusId?: string) => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      const { width, height } = viewport.getBoundingClientRect();
+      const state = useEditorStore.getState();
+      const target =
+        focusId ?? (state.isPreviewMode ? state.previewRootId : null);
+      const roots = target
+        ? state.elements.filter((element) => element.id === target)
+        : state.elements;
+      if (!roots.length || width <= 0 || height <= 0) return;
+      const boxes = roots.map((root) => ({
+        x: typeof root.styles.left === "number" ? root.styles.left : 0,
+        y: typeof root.styles.top === "number" ? root.styles.top : 0,
+        width:
+          typeof root.styles.width === "number"
+            ? root.styles.width
+            : root.type === "frame"
+              ? 1200
+              : 200,
+        height:
+          typeof root.styles.height === "number"
+            ? root.styles.height
+            : root.type === "frame"
+              ? 800
+              : 24,
+      }));
+      const left = Math.min(...boxes.map((box) => box.x)),
+        top = Math.min(...boxes.map((box) => box.y));
+      const rootWidth =
+        Math.max(...boxes.map((box) => box.x + box.width)) - left;
+      const rootHeight =
+        Math.max(...boxes.map((box) => box.y + box.height)) - top;
+      const nextZoom = Math.max(
+        MIN_ZOOM,
+        Math.min(1, (width - 96) / rootWidth, (height - 144) / rootHeight),
+      );
+      setZoom(nextZoom);
+      setPan({
+        x: (width - rootWidth * nextZoom) / 2 - left * nextZoom,
+        y: (height - rootHeight * nextZoom) / 2 - top * nextZoom,
+      });
+    },
+    [setPan, setZoom],
+  );
 
   useEffect(() => {
     const { canvasConfig } = useEditorStore.getState();
@@ -119,7 +142,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
 
   useEffect(() => {
     if (preview) fitToView();
-  }, [preview, fitToView]);
+  }, [preview, previewRootId, fitToView]);
 
   useEffect(() => {
     function clearGesture() {
@@ -334,6 +357,64 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           />
         ))}
       </div>
+      <div
+        className="canvas-breakpoints"
+        role="group"
+        aria-label="Canvas breakpoints"
+        data-canvas-ui
+      >
+        {preview ? (
+          <label>
+            Preview{" "}
+            <select
+              aria-label="Preview breakpoint"
+              value={previewRootId ?? ""}
+              onChange={(event) =>
+                useEditorStore.getState().setPreviewRoot(event.target.value)
+              }
+            >
+              {elements
+                .filter((element) => element.breakpoint)
+                .map((element) => (
+                  <option key={element.id} value={element.id}>
+                    {element.name} · {element.styles.width}px
+                  </option>
+                ))}
+            </select>
+          </label>
+        ) : (
+          BREAKPOINTS.map((config) => {
+            const frame = elements.find(
+              (element) => element.breakpoint === config.id,
+            );
+            if (config.id === "desktop" && !frame) return null;
+            return (
+              <button
+                key={config.id}
+                type="button"
+                disabled={
+                  suspended ||
+                  (!frame &&
+                    !elements.some((element) => element.type === "frame"))
+                }
+                aria-label={`${frame ? "Focus" : "Add"} ${config.name} breakpoint`}
+                onClick={() => {
+                  if (frame) {
+                    setSelectedElementId(frame.id);
+                    fitToView(frame.id);
+                  } else if (config.id !== "desktop") {
+                    useEditorStore.getState().addBreakpoint(config.id);
+                    fitToView();
+                  }
+                }}
+              >
+                {frame ? "" : "+ "}
+                {config.name} <span>{config.width}</span>
+              </button>
+            );
+          })
+        )}
+      </div>
       <div className="canvas-breadcrumb" data-canvas-ui hidden={preview}>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />
         <span>{pageName}</span>
@@ -395,7 +476,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         <IconButton
           icon={Maximize}
           label="Reset canvas view"
-          onClick={fitToView}
+          onClick={() => fitToView()}
         />
       </div>
     </section>

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { BREAKPOINTS, createDesktop, createWorkspace } from "@/lib/workspace";
 import {
   canCreateComponent,
   componentOwner,
@@ -15,6 +16,8 @@ import {
 export type { ElementEffects } from "@/types/editor";
 
 import type {
+  HistorySnapshot,
+  WorkspaceDocument,
   EditorPage,
   MasterComponent,
   CanvasConfig,
@@ -93,6 +96,27 @@ function removeElement(elements: EditorElement[], id: string): EditorElement[] {
 }
 
 export interface EditorState {
+  projectTitle: string;
+  historyPast: HistorySnapshot[];
+  historyFuture: HistorySnapshot[];
+  historyTransaction: HistorySnapshot | null;
+  workspaceRevision: number;
+  hasHydrated: boolean;
+  persistenceError: string | null;
+  persistenceBlocked: boolean;
+  previewRootId: string | null;
+  beginHistory: () => void;
+  endHistory: (cancel?: boolean) => void;
+  undo: () => void;
+  redo: () => void;
+  renameProject: (title: string) => boolean;
+  replaceWorkspace: (starter?: boolean) => void;
+  hydrateWorkspace: (
+    document: WorkspaceDocument | null,
+    error?: string,
+  ) => void;
+  addBreakpoint: (breakpoint: "tablet" | "mobile") => string | null;
+  setPreviewRoot: (id: string) => void;
   elements: EditorElement[];
   pages: EditorPage[];
   activePageId: string;
@@ -144,23 +168,60 @@ export interface EditorState {
 }
 
 function defaultElements(id: string): EditorElement[] {
-  return [
-    {
-      id,
-      name: "Desktop",
-      type: "frame",
-      children: [],
-      styles: {
-        position: "relative",
-        width: 1200,
-        height: 800,
-        backgroundColor: "#ffffff",
-        color: "#111111",
-      },
-      effects: createDefaultEffects(),
-      animations: {},
-    },
-  ];
+  return [createDesktop(id)];
+}
+
+function snapshot(state: EditorState): HistorySnapshot {
+  return {
+    projectTitle: state.projectTitle,
+    pages: state.pages,
+    components: state.components,
+    activePageId: state.activePageId,
+    selectedElementId: state.selectedElementId,
+  };
+}
+function documentChanged(
+  before: WorkspaceDocument,
+  after: WorkspaceDocument,
+): boolean {
+  return (
+    before.projectTitle !== after.projectTitle ||
+    before.pages.length !== after.pages.length ||
+    before.pages.some((page, index) => {
+      const next = after.pages[index];
+      return (
+        page.id !== next.id ||
+        page.name !== next.name ||
+        page.path !== next.path ||
+        page.elements !== next.elements
+      );
+    }) ||
+    before.components.length !== after.components.length ||
+    before.components.some(
+      (component, index) => component !== after.components[index],
+    )
+  );
+}
+function restore(
+  document: HistorySnapshot | WorkspaceDocument,
+): Partial<EditorState> {
+  const page = document.pages.find(
+    (page) => page.id === document.activePageId,
+  )!;
+  const selected =
+    "selectedElementId" in document ? document.selectedElementId : null;
+  return {
+    ...document,
+    elements: page.elements,
+    canvasConfig: page.canvasConfig,
+    selectedElementId:
+      selected && findElementById(page.elements, selected) ? selected : null,
+    isPreviewMode: false,
+    previewCanvasConfig: null,
+    previewRootId: null,
+    animationReplay: null,
+    activeTool: "select",
+  };
 }
 
 function pagePath(value: string): string | null {
@@ -221,11 +282,16 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
       const elements = pages.find(
         (page) => page.id === next.activePageId,
       )!.elements;
+      const document = { ...next, pages, components, elements };
+      const changedDocument = documentChanged(state, document);
       return {
-        ...next,
-        pages,
-        components,
-        elements,
+        ...document,
+        ...(changedDocument && !state.historyTransaction
+          ? {
+              historyPast: [...state.historyPast, snapshot(state)].slice(-100),
+              historyFuture: [],
+            }
+          : {}),
         selectedElementId:
           next.selectedElementId &&
           findElementById(elements, next.selectedElementId)
@@ -234,6 +300,172 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
       };
     });
   return {
+    projectTitle: "Untitled",
+    historyPast: [],
+    historyFuture: [],
+    historyTransaction: null,
+    workspaceRevision: 0,
+    hasHydrated: false,
+    persistenceError: null,
+    persistenceBlocked: false,
+    previewRootId: null,
+    beginHistory: () => {
+      const state = get();
+      if (!state.historyTransaction && !state.isPreviewMode)
+        rawSet({ historyTransaction: snapshot(state) });
+    },
+    endHistory: (cancel = false) => {
+      const state = get(),
+        before = state.historyTransaction;
+      if (!before) return;
+      const changed = documentChanged(before, state);
+      const page =
+        before.pages.find((page) => page.id === state.activePageId) ??
+        before.pages.find((page) => page.id === before.activePageId)!;
+      rawSet({
+        historyTransaction: null,
+        ...(cancel && changed
+          ? {
+              projectTitle: before.projectTitle,
+              pages: before.pages,
+              components: before.components,
+              activePageId: page.id,
+              elements: page.elements,
+              selectedElementId:
+                state.selectedElementId &&
+                findElementById(page.elements, state.selectedElementId)
+                  ? state.selectedElementId
+                  : null,
+            }
+          : changed
+            ? {
+                historyPast: [...state.historyPast, before].slice(-100),
+                historyFuture: [],
+              }
+            : {}),
+      });
+    },
+    undo: () => {
+      if (get().isPreviewMode) return;
+      get().endHistory();
+      const state = get(),
+        previous = state.historyPast.at(-1);
+      if (!previous) return;
+      rawSet({
+        ...restore(previous),
+        historyPast: state.historyPast.slice(0, -1),
+        historyFuture: [...state.historyFuture, snapshot(state)],
+      });
+    },
+    redo: () => {
+      if (get().isPreviewMode) return;
+      get().endHistory();
+      const state = get(),
+        next = state.historyFuture.at(-1);
+      if (!next) return;
+      rawSet({
+        ...restore(next),
+        historyPast: [...state.historyPast, snapshot(state)].slice(-100),
+        historyFuture: state.historyFuture.slice(0, -1),
+      });
+    },
+    renameProject: (value) => {
+      const projectTitle = value.trim();
+      if (!projectTitle || projectTitle.length > 80 || get().isPreviewMode)
+        return false;
+      if (projectTitle !== get().projectTitle) set({ projectTitle });
+      return true;
+    },
+    replaceWorkspace: (starter = false) => {
+      if (get().isPreviewMode) return;
+      get().endHistory();
+      set({
+        ...restore(createWorkspace(starter)),
+        persistenceBlocked: false,
+        persistenceError: null,
+        workspaceRevision: get().workspaceRevision + 1,
+      });
+    },
+    hydrateWorkspace: (document, error) => {
+      rawSet({
+        ...(document ? restore(document) : {}),
+        hasHydrated: true,
+        persistenceBlocked: Boolean(error),
+        persistenceError: error ?? null,
+        historyPast: [],
+        historyFuture: [],
+        historyTransaction: null,
+        workspaceRevision: get().workspaceRevision + 1,
+      });
+    },
+    addBreakpoint: (breakpoint) => {
+      const state = get(),
+        config = BREAKPOINTS.find((item) => item.id === breakpoint);
+      if (
+        state.isPreviewMode ||
+        !config ||
+        state.elements.some((element) => element.breakpoint === breakpoint)
+      )
+        return null;
+      const desktop =
+        state.elements.find((element) => element.breakpoint === "desktop") ??
+        state.elements.find((element) => element.type === "frame");
+      if (!desktop) return null;
+      const copy = (source: EditorElement): EditorElement => {
+        if (source.componentId) {
+          const definition = state.components.find(
+            (component) => component.id === source.componentId,
+          );
+          if (definition)
+            return instantiateComponent({ ...definition, element: source });
+        }
+        return {
+          ...structuredClone(source),
+          id: crypto.randomUUID(),
+          children: source.children.map(copy),
+        };
+      };
+      const frame = copy({
+        ...desktop,
+        componentId: undefined,
+        componentRole: undefined,
+        componentSourceId: undefined,
+      });
+      frame.name = config.name;
+      frame.breakpoint = breakpoint;
+      const right = Math.max(
+        ...state.elements.map(
+          (element) =>
+            (typeof element.styles.left === "number"
+              ? element.styles.left
+              : 0) +
+            (typeof element.styles.width === "number"
+              ? element.styles.width
+              : 1200),
+        ),
+      );
+      frame.styles = {
+        ...frame.styles,
+        width: config.width,
+        left: right + 80,
+        top: desktop.styles.top ?? 0,
+      };
+      set({
+        elements: [...state.elements, frame],
+        selectedElementId: frame.id,
+        activeTool: "select",
+      });
+      return frame.id;
+    },
+    setPreviewRoot: (id) => {
+      if (
+        get().isPreviewMode &&
+        get().elements.some(
+          (element) => element.id === id && element.breakpoint,
+        )
+      )
+        set({ previewRootId: id });
+    },
     elements: initialElements,
     pages: [
       {
@@ -424,6 +656,13 @@ export const useEditorStore = create<EditorState>((rawSet, get) => {
         return enabled
           ? {
               isPreviewMode: true,
+              previewRootId:
+                state.elements.find(
+                  (element) =>
+                    element.id === state.previewRootId && element.breakpoint,
+                )?.id ??
+                state.elements.find((element) => element.breakpoint)?.id ??
+                null,
               previewCanvasConfig: {
                 zoom: state.canvasConfig.zoom,
                 pan: { ...state.canvasConfig.pan },

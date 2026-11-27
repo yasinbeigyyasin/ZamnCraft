@@ -339,3 +339,60 @@ test("empty pages export valid target shells without motion imports or fake elem
     assert.ok(!code.includes("zc-node-"));
   }
 });
+
+test("responsive exports compile in each framework and contain ordered breakpoint rules", () => {
+  const elements: EditorElement[] = (
+    ["desktop", "tablet", "mobile"] as const
+  ).map((breakpoint, index) => ({
+    ...fixture()[0],
+    id: breakpoint,
+    name: breakpoint,
+    breakpoint,
+    children: [text(`${breakpoint}-text`, `${breakpoint} variant`)],
+    styles: {
+      width: [1200, 810, 390][index],
+      height: 800,
+      left: index * 1280,
+      top: 0,
+    },
+  }));
+  for (const target of EXPORT_TARGETS) {
+    const code = generateCode(elements, target.id);
+    assert.match(code, /@media \(max-width: 1199px\)/);
+    assert.match(code, /@media \(max-width: 809px\)/);
+    assert.ok(code.indexOf("1199px") < code.indexOf("809px"));
+    assert.ok(!code.includes("left: 1280px"));
+    if (target.id === "react")
+      assert.deepEqual(
+        ts.transpileModule(code, {
+          compilerOptions: { jsx: ts.JsxEmit.ReactJSX },
+          reportDiagnostics: true,
+        }).diagnostics,
+        [],
+      );
+    if (target.id === "vue") {
+      const { descriptor, errors } = parse(code);
+      assert.deepEqual(errors, []);
+      const script = compileScript(descriptor, { id: "responsive" });
+      assert.deepEqual(
+        compileTemplate({
+          source: descriptor.template!.content,
+          filename: "Page.vue",
+          id: "responsive",
+          compilerOptions: { bindingMetadata: script.bindings },
+        }).errors,
+        [],
+      );
+      assert.deepEqual(
+        compileStyle({
+          source: descriptor.styles[0].content,
+          filename: "Page.vue",
+          id: "responsive",
+        }).errors,
+        [],
+      );
+    }
+    if (target.id === "svelte")
+      assert.ok(compile(code, { filename: "Page.svelte" }).js.code);
+  }
+});

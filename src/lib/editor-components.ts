@@ -59,6 +59,7 @@ export function instantiateComponent(
         ? previous.id
         : (existing.get(source.id) ?? crypto.randomUUID()),
     componentSourceId: source.id,
+    breakpoint: undefined,
     ...(root
       ? { componentId: component.id, componentRole: "instance" as const }
       : {}),
@@ -76,6 +77,7 @@ export function instantiateComponent(
       top: previous.styles.top,
     };
     instance.freePosition = previous.freePosition;
+    instance.breakpoint = previous.breakpoint;
   }
   return instance;
 }

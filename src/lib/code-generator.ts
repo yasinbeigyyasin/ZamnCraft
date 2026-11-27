@@ -138,6 +138,8 @@ export function generateCode(
   elements: EditorElement[],
   framework: ExportFramework,
 ): string {
+  const responsive =
+    elements.filter((element) => element.breakpoint).length > 1;
   const css = [
     `.zc-design, .zc-design * { box-sizing: border-box; }`,
     `.zc-design { position: relative; width: 1200px; height: 800px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5; color: #fff; isolation: isolate; }`,
@@ -177,7 +179,14 @@ export function generateCode(
     const styles: CSSProperties = {
       ...element.styles,
       position: element.styles.position || "relative",
-      ...(root ? { position: "relative", left: 0, top: 0 } : {}),
+      ...(root
+        ? {
+            position: "relative",
+            left: 0,
+            top: 0,
+            ...(responsive && element.breakpoint ? { maxWidth: "100%" } : {}),
+          }
+        : {}),
       ...(parent?.display === "flex" &&
       (parent.flexDirection?.startsWith("column")
         ? element.styles.height === "100%"
@@ -283,17 +292,41 @@ export function generateCode(
   }
   const roots = elements.map((element) => ({
     node: build(element, undefined, true),
+    breakpoint: element.breakpoint,
+    height:
+      typeof element.styles.height === "number" ? element.styles.height : 800,
     wrapper: rule(
       {
         position: "absolute",
-        left: element.styles.left ?? 0,
-        top: element.styles.top ?? 0,
-        width: element.styles.width === "100%" ? "100%" : "max-content",
+        left: responsive && element.breakpoint ? 0 : (element.styles.left ?? 0),
+        top: responsive && element.breakpoint ? 0 : (element.styles.top ?? 0),
+        width:
+          (responsive && element.breakpoint) || element.styles.width === "100%"
+            ? "100%"
+            : "max-content",
         ...(element.styles.height === "100%" ? { height: "100%" } : {}),
       },
       "root",
     ),
   }));
+  if (responsive) {
+    const variants = ["desktop", "tablet", "mobile"].flatMap((breakpoint) =>
+      roots.filter((root) => root.breakpoint === breakpoint),
+    );
+    css.push(
+      `.zc-design { width: 100%; max-width: 1200px; height: ${variants[0].height}px; }`,
+    );
+    for (const root of variants)
+      css.push(
+        `.zc-design .${root.wrapper} { display: ${root === variants[0] ? "block" : "none"}; }`,
+      );
+    for (const root of variants.slice(1)) {
+      const maxWidth = root.breakpoint === "tablet" ? 1199 : 809;
+      css.push(
+        `@media (max-width: ${maxWidth}px) {\n  .zc-design { height: ${root.height}px; }\n${variants.map((variant) => `  .zc-design .${variant.wrapper} { display: ${variant === root ? "block" : "none"}; }`).join("\n")}\n}`,
+      );
+    }
+  }
   const utilities = (node: Node) =>
     [
       "box-border",

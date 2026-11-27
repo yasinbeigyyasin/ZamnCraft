@@ -33,6 +33,7 @@ export interface EditorElement {
   children: EditorElement[];
   styles: CSSProperties;
   content?: string;
+  breakpoint?: "desktop" | "tablet" | "mobile";
   componentId?: string;
   componentRole?: "master" | "instance";
   componentSourceId?: string;
@@ -60,4 +61,14 @@ export interface MasterComponent {
   id: string;
   name: string;
   element: EditorElement;
+}
+
+export interface WorkspaceDocument {
+  projectTitle: string;
+  pages: EditorPage[];
+  components: MasterComponent[];
+  activePageId: string;
+}
+export interface HistorySnapshot extends WorkspaceDocument {
+  selectedElementId: string | null;
 }

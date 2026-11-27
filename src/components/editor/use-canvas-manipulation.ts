@@ -18,16 +18,6 @@ import {
   type ResizeHandle,
 } from "@/lib/canvas-geometry";
 
-const changedKeys = [
-  "left",
-  "top",
-  "width",
-  "height",
-  "minWidth",
-  "minHeight",
-  "flexShrink",
-] as const;
-
 type Gesture = {
   id: string;
   pointerId: number;
@@ -58,12 +48,7 @@ export function useCanvasManipulation(
     const current = gesture.current;
     gesture.current = null;
     if (!current) return;
-    if (cancel && current.moved) {
-      const restore: CSSProperties = {};
-      for (const key of changedKeys)
-        Object.assign(restore, { [key]: current.styles[key] });
-      useEditorStore.getState().updateStyles(current.id, restore);
-    }
+    useEditorStore.getState().endHistory(cancel);
     if (current.node.hasPointerCapture(current.pointerId))
       current.node.releasePointerCapture(current.pointerId);
     setGuides([]);
@@ -81,7 +66,12 @@ export function useCanvasManipulation(
   useEffect(() => {
     const cancel = () => finish(true);
     const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && gesture.current) {
+      if (
+        gesture.current &&
+        (event.key === "Escape" ||
+          ((event.ctrlKey || event.metaKey) &&
+            ["z", "y"].includes(event.key.toLowerCase())))
+      ) {
         event.preventDefault();
         cancel();
       }
@@ -189,6 +179,7 @@ export function useCanvasManipulation(
       moved: false,
     };
     state.setSelectedElementId(id);
+    useEditorStore.getState().beginHistory();
     // Capture on the element, not the viewport, so ordinary clicks and double-clicks retain their target.
     node.setPointerCapture(event.pointerId);
     if (handle) {

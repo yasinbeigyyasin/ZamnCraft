@@ -20,6 +20,7 @@ test("editor starts with a white 1200 × 800 Desktop frame and independent UI st
   assert.equal(state.elements.length, 1);
   assert.deepEqual(state.elements[0], {
     id: "desktop",
+    breakpoint: "desktop",
     name: "Desktop",
     type: "frame",
     children: [],

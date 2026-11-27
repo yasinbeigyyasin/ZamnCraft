@@ -806,13 +806,30 @@ function InspectorProperties({ element }: { element?: EditorElement }) {
 }
 
 export function InspectorPanel() {
+  useEffect(() => () => useEditorStore.getState().endHistory(), []);
   const selected = useEditorStore((state) =>
     state.selectedElementId
       ? findElementById(state.elements, state.selectedElementId)
       : undefined,
   );
   return (
-    <div className="inspector-panel">
+    <div
+      className="inspector-panel"
+      onFocusCapture={(event) => {
+        if (
+          event.target instanceof HTMLInputElement ||
+          event.target instanceof HTMLTextAreaElement
+        )
+          useEditorStore.getState().beginHistory();
+      }}
+      onBlurCapture={(event) => {
+        if (
+          event.target instanceof HTMLInputElement ||
+          event.target instanceof HTMLTextAreaElement
+        )
+          useEditorStore.getState().endHistory();
+      }}
+    >
       <div className="panel-heading">
         <h2>Inspector</h2>
         <Settings2 size={13} className="muted" aria-hidden="true" />

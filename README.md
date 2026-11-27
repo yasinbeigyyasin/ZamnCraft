@@ -74,7 +74,7 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 
 Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
 
-Play opens a live interactive preview. Export Code generates a file for the current page. State is session-only, with no backend, undo history, or persistence. Position and size can be changed through the Inspector or directly on the canvas.
+Play opens a live interactive preview. Export Code generates a file for the current page. The workspace is saved automatically in this browser; document edits support undo/redo. No backend is required. Position and size can be changed through the Inspector or directly on the canvas.
 
 ## Interactive Layers panel
 
@@ -85,7 +85,7 @@ Open the **Layers** tab to see the store's recursive element tree. Rows are 32px
 - **Delete:** use the trash button (shown on hover, keyboard focus, or touch devices), or press Delete/Backspace with a layer selected. Deleting a parent also removes all descendants. Unrelated selections are preserved; selections in a deleted subtree are cleared. The final root can be deleted; new elements can still be inserted onto the blank canvas.
 - **Safe shortcuts:** deletion ignores text inputs, contentEditable text, composition, held-key repeats, Ctrl/Cmd/Alt combinations, handled events, and open dialogs. The navigation dialog still supports its explicit rename/trash controls on narrow screens.
 
-Store actions are `renameElement(id: string, name: string): void` and `deleteElement(id: string): void`. Both update nested trees immutably and ignore unknown IDs. Removal preserves unrelated element references. There is no undo or persistence yet: deletion is immediate and refresh resets the document.
+Store actions are `renameElement(id: string, name: string): void` and `deleteElement(id: string): void`. Both update nested trees immutably and ignore unknown IDs. Removal preserves unrelated element references. Deletion is undoable during the session, and the resulting workspace is automatically saved locally.
 
 ## Live Inspector
 
@@ -99,7 +99,7 @@ Select an element on the canvas or in Layers. The existing Inspector updates imm
 
 `updateStyles(id, patch)` merges CSS properties immutably. `updatePosition(id, patch)`, `updateSize(id, axis, number | "fill" | "fit")`, and `updateLayout(id, "free" | "stack" | "grid")` provide property-specific actions. `updateText(id, content)` remains the shared text action. Unknown IDs, non-finite numbers, negative dimensions/spacing, and out-of-range opacity are ignored. Unrelated branches and selection are preserved. Both store import paths reference a single instance.
 
-Persistence and undo remain out of scope. Refresh still resets the session.
+Live Inspector input edits are grouped into one undo step per focus session and saved locally after commitment.
 
 ## Direct canvas manipulation
 
@@ -109,7 +109,7 @@ Persistence and undo remain out of scope. Refresh still resets the session.
 - **Commit/cancel:** release to commit, including outside the canvas through pointer capture. Escape, pointer cancellation, capture loss, window blur, hidden tabs, selection/tool changes, or opening a modal cancel and restore the starting geometry/sizing modes. A 3px movement threshold keeps clicks and double-click text editing intact.
 - **Pan and text:** Space + drag and middle-button pan remain separate from manipulation. Ctrl/Cmd-wheel zoom is suspended during an element gesture. Text editing and Inspector inputs cannot initiate a drag. Primary touch/pen use the same pointer path; the Inspector remains the keyboard-accessible alternative to mouse/touch handles.
 
-Direct manipulation uses the existing atomic `updateStyles` action; guides and gesture snapshots stay transient rather than becoming document state. No new dependency is required. Gesture cancellation is not an undo history: after release, edits remain session-only with no general undo or persistence.
+Direct manipulation uses the existing atomic `updateStyles` action; guides and gesture snapshots stay transient rather than becoming document state. No new dependency is required. Each completed drag or resize is a single undo step; cancellation restores its starting document without adding history. Committed changes are saved locally.
 
 ## Effects & Animations and live preview
 
@@ -143,18 +143,18 @@ In **Pages**, click **Add page**, enter a unique path such as `/about` or `/cont
 
 Each page owns an independent root element tree and editing camera; new pages begin with a 1200 × 800 Desktop. Switching pages clears stale selection and replay state and restores that page's camera. Breadcrumbs and Layers follow the active page, and Play previews only that page. The trash button asks for confirmation before deleting a page and its canvas. At least one page is retained. Components are shared across pages, not duplicated into separate registries.
 
-Pages and Assets remain accessible through the navigation dialog on narrow screens. Page/component management is suspended in preview. This is editor-only page management, not published routes or cross-page link navigation. All pages and components are still session-only: refresh clears them; there is no persistence or undo history yet.
+Pages and Assets remain accessible through the navigation dialog on narrow screens. Page/component management is suspended in preview. This is editor-only page management, not published routes or cross-page link navigation. Pages and components are persisted locally across refresh; page and component document edits participate in session undo/redo.
 
 ## Multi-framework code export
 
 Click **Export Code** to open the current page's generated source. Framework tabs support arrow keys, Home, and End. The read-only syntax-styled viewer supports text selection (Ctrl/Cmd+A selects its code), **Copy Code** with Copied! feedback, and **Download File**. If clipboard access is blocked, use text selection or download. Escape closes the modal and restores toolbar focus; editor gestures/shortcuts stay suspended while it is open.
 
-| Target | Download | Setup |
-| --- | --- | --- |
-| React / Next.js | `Page.tsx` | Existing React/Next project with Tailwind CSS; `npm install framer-motion` for effects. Includes `"use client"`, Tailwind layout utilities, embedded exact-value CSS, reusable functions, and Framer Motion appear/hover/tap transitions. |
-| Vue 3 | `Page.vue` | Vue SFC tooling. Includes template, TypeScript script setup, style block, and reusable local render components. |
-| Svelte | `Page.svelte` | Svelte 5 with TypeScript support. Uses reusable snippets and an embedded style block. |
-| HTML/CSS | `index.html` | Open directly in a browser. Standalone HTML with embedded CSS; component instances become ordinary markup. |
+| Target          | Download      | Setup                                                                                                                                                                                                                                     |
+| --------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| React / Next.js | `Page.tsx`    | Existing React/Next project with Tailwind CSS; `npm install framer-motion` for effects. Includes `"use client"`, Tailwind layout utilities, embedded exact-value CSS, reusable functions, and Framer Motion appear/hover/tap transitions. |
+| Vue 3           | `Page.vue`    | Vue SFC tooling. Includes template, TypeScript script setup, style block, and reusable local render components.                                                                                                                           |
+| Svelte          | `Page.svelte` | Svelte 5 with TypeScript support. Uses reusable snippets and an embedded style block.                                                                                                                                                     |
+| HTML/CSS        | `index.html`  | Open directly in a browser. Standalone HTML with embedded CSS; component instances become ordinary markup.                                                                                                                                |
 
 `generateCode(elements, framework)` in `src/lib/code-generator.ts` is a pure, deterministic compiler: stable names and sorted style properties, no UUIDs, timestamps, canvas camera, selection handles, or editor runtime. It preserves Free/Stack/Grid, root and parent-local positions, fixed/Fill/Fit sizing, typography, borders, fills, opacity, blur, shadow, and current instance content. Equivalent linked component trees share definitions in framework exports; local overrides produce separate variants rather than silently being discarded. Only components present on the active page are emitted.
 
@@ -189,3 +189,11 @@ Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned ski
 - `src/store/editor-store.ts`: canonical element tree, selection, tool state, canvas actions, and property actions.
 - `src/store/useEditorStore.ts`: compatibility re-export of the same Zustand store.
 - `src/app/globals.css`: theme, control styles, and responsive layout.
+
+## Responsive breakpoints, history, and local workspace
+
+- **Breakpoints:** use the compact canvas controls to add **Tablet (810px)** and **Mobile (390px)** beside **Desktop (1200px)**. Each starts as a deep copy of Desktop with fresh IDs. Click a breakpoint control to focus it; Reset canvas view fits all roots. Frames are independent designs, not automatic reflow or synchronized overrides (linked components still follow their masters). Adjust narrow layouts in the Inspector. Preview's selector shows one breakpoint at a time and restores the editing camera on exit.
+- **Responsive export:** when multiple breakpoint roots exist, all four export targets overlay the variants and switch them using media queries: Desktop at 1200px+, Tablet at 810–1199px, Mobile at 809px and below. Missing variants fall back to the next available larger design. Editor side-by-side offsets are omitted for these roots. Child layouts remain exactly as authored; fixed-width children may require narrow-screen adjustments.
+- **Undo/redo:** toolbar controls or **Ctrl/Cmd+Z** undo; **Ctrl/Cmd+Shift+Z** or **Ctrl+Y** redo. Creation, deletion, text/style/layout/effect changes, pages, components, project renaming, and workspace replacement are recorded in a bounded 100-step history. A drag/resize or focused Inspector input session is one step, not one per pointer move/keystroke. Escape or a history shortcut during a gesture cancels that gesture first. Camera/selection-only changes do not create history entries. Shortcuts leave text inputs, dialogs, and preview alone. History is not retained across refresh.
+- **Local workspace:** open the project title, **Local workspace**, or the back/overview button (also available on mobile). Rename the project, load **Landing Page Starter**, or reset to a clean Desktop. Starter/reset require explicit confirmation and can be undone before refresh. The starter contains editable Navbar, Hero, CTA with hover/press effects, and three Feature cards.
+- **Storage:** versioned key `zamncraft.workspace.v1` stores every page/tree/camera, the active page, component registry, and project title. Saves debounce by 200ms, flush when leaving/hiding the tab, and exclude unfinished transactions, history, preview, and transient UI. Hydration runs only on the client. Invalid/incompatible data is not overwritten until an explicit reset/template replacement; storage failures appear in the workspace menu. Validation caps loaded data at 8 million characters, 100 pages, 500 components, 20,000 tree nodes and depth 40. This is browser-local, not account/cloud sync or multi-tab collaboration: clearing site data removes it, and another tab may overwrite it. Export important work before leaving if storage reports a failure.

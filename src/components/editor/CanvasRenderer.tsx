@@ -156,6 +156,7 @@ const ElementNode = memo(function ElementNodeView({
       data-selected={selected}
       data-component={linked}
       data-component-role={element.componentRole}
+      data-breakpoint={element.breakpoint}
       className="canvas-element"
       style={{
         ...element.styles,
@@ -311,42 +312,48 @@ export function CanvasRenderer({
   const zoom = useEditorStore((state) => state.canvasConfig.zoom);
   const preview = useEditorStore((state) => state.isPreviewMode);
 
-  return elements.map((element) => (
-    <div
-      key={element.id}
-      className={element.type === "frame" ? "canvas-artboard" : "canvas-root"}
-      style={{
-        left: element.styles.left ?? 0,
-        top: element.styles.top ?? 0,
-        width:
-          element.styles.width === "100%"
-            ? "100%"
-            : typeof element.styles.width === "number"
-              ? element.styles.width
-              : "max-content",
-        height:
-          element.styles.height === "100%"
-            ? "100%"
-            : typeof element.styles.height === "number"
-              ? element.styles.height
-              : undefined,
-      }}
-    >
-      {!preview &&
-        element.type === "frame" &&
-        selectedElementId !== element.id && (
-          <div
-            className="canvas-frame-label"
-            style={{ transform: `scale(${1 / zoom})` }}
-          >
-            <Monitor size={12} aria-hidden="true" />
-            <span>{element.name}</span>
-            <span>
-              {element.styles.width} × {element.styles.height}
-            </span>
-          </div>
-        )}
-      <ElementNode element={element} canInteract={canInteract} root />
-    </div>
-  ));
+  const previewRootId = useEditorStore((state) => state.previewRootId);
+  return elements
+    .filter(
+      (element) =>
+        !preview || !element.breakpoint || element.id === previewRootId,
+    )
+    .map((element) => (
+      <div
+        key={element.id}
+        className={element.type === "frame" ? "canvas-artboard" : "canvas-root"}
+        style={{
+          left: element.styles.left ?? 0,
+          top: element.styles.top ?? 0,
+          width:
+            element.styles.width === "100%"
+              ? "100%"
+              : typeof element.styles.width === "number"
+                ? element.styles.width
+                : "max-content",
+          height:
+            element.styles.height === "100%"
+              ? "100%"
+              : typeof element.styles.height === "number"
+                ? element.styles.height
+                : undefined,
+        }}
+      >
+        {!preview &&
+          element.type === "frame" &&
+          selectedElementId !== element.id && (
+            <div
+              className="canvas-frame-label"
+              style={{ transform: `scale(${1 / zoom})` }}
+            >
+              <Monitor size={12} aria-hidden="true" />
+              <span>{element.name}</span>
+              <span>
+                {element.styles.width} × {element.styles.height}
+              </span>
+            </div>
+          )}
+        <ElementNode element={element} canInteract={canInteract} root />
+      </div>
+    ));
 }

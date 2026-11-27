@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
+  AlertCircle,
+  Undo2,
+  Redo2,
   Check,
   ChevronDown,
   Code2,
@@ -12,6 +15,7 @@ import {
   Play,
   Square,
 } from "lucide-react";
+import { startWorkspacePersistence } from "@/lib/workspace-persistence";
 import { canCreateComponent } from "@/lib/editor-components";
 import { Canvas } from "./canvas";
 import { useEditorStore } from "@/store/useEditorStore";
@@ -21,6 +25,15 @@ import { InspectorPanel } from "./inspector-panel";
 import { NavigationPanel } from "./navigation-panel";
 
 export function EditorShell() {
+  const projectTitle = useEditorStore((state) => state.projectTitle);
+  const persistenceError = useEditorStore((state) => state.persistenceError);
+  const workspaceRevision = useEditorStore((state) => state.workspaceRevision);
+  const canUndo = useEditorStore(
+    (state) =>
+      state.historyPast.length > 0 || Boolean(state.historyTransaction),
+  );
+  const canRedo = useEditorStore((state) => state.historyFuture.length > 0);
+  useEffect(() => startWorkspacePersistence(), []);
   const activeTool = useEditorStore((state) => state.activeTool);
   const setActiveTool = useEditorStore((state) => state.setActiveTool);
   const preview = useEditorStore((state) => state.isPreviewMode);
@@ -40,8 +53,6 @@ export function EditorShell() {
         event.defaultPrevented ||
         event.isComposing ||
         event.repeat ||
-        event.metaKey ||
-        event.ctrlKey ||
         event.altKey ||
         dialog ||
         (target instanceof HTMLElement &&
@@ -49,6 +60,18 @@ export function EditorShell() {
             target.closest("input, textarea, select, [role='textbox']")))
       )
         return;
+
+      if ((event.ctrlKey || event.metaKey) && !preview) {
+        const key = event.key.toLowerCase();
+        if (key === "z" || (event.ctrlKey && key === "y")) {
+          event.preventDefault();
+          const state = useEditorStore.getState();
+          if (key === "y" || event.shiftKey) state.redo();
+          else state.undo();
+        }
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) return;
 
       if (preview) {
         if (event.key === "Escape") {
@@ -98,6 +121,7 @@ export function EditorShell() {
 
   return (
     <main className={`editor-shell ${preview ? "editor-preview" : ""}`}>
+      <title>{`${projectTitle} — ZamnCraft`}</title>
       <header className="top-bar">
         <div className="toolbar-project">
           <button
@@ -121,12 +145,23 @@ export function EditorShell() {
             onClick={() => setDialog("project")}
             aria-haspopup="dialog"
           >
-            <span>Untitled</span>
+            <span>{projectTitle}</span>
             <ChevronDown size={12} aria-hidden="true" />
           </button>
-          <span className="workspace-label">
-            <Check size={12} aria-hidden="true" /> Local workspace
-          </span>
+          <button
+            type="button"
+            className="workspace-label"
+            aria-haspopup="dialog"
+            onClick={() => setDialog("project")}
+            title={persistenceError ?? "Saved automatically in this browser"}
+          >
+            {persistenceError ? (
+              <AlertCircle size={12} aria-hidden="true" />
+            ) : (
+              <Check size={12} aria-hidden="true" />
+            )}{" "}
+            Local workspace
+          </button>
           <IconButton
             icon={PanelLeft}
             label="Open project navigation"
@@ -193,6 +228,22 @@ export function EditorShell() {
           </button>
         </nav>
         <div className="toolbar-actions">
+          <IconButton
+            icon={Undo2}
+            label="Undo"
+            className="history-button"
+            hidden={preview}
+            disabled={!canUndo}
+            onClick={() => useEditorStore.getState().undo()}
+          />
+          <IconButton
+            icon={Redo2}
+            label="Redo"
+            className="history-button"
+            hidden={preview}
+            disabled={!canRedo}
+            onClick={() => useEditorStore.getState().redo()}
+          />
           <span className="avatar" title="Your workspace">
             Y
           </span>
@@ -241,7 +292,7 @@ export function EditorShell() {
           <NavigationPanel onHelp={() => setDialog("help")} />
         </aside>
 
-        <Canvas suspended={dialog !== null} />
+        <Canvas key={workspaceRevision} suspended={dialog !== null} />
 
         <aside
           className="inspector-sidebar"

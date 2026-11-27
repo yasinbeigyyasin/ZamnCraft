@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { File, X } from "lucide-react";
+import { X } from "lucide-react";
+import { WorkspaceSettings } from "./workspace-settings";
 import { CodeExport } from "./code-export";
 import { IconButton, tools } from "./editor-controls";
 import { InspectorPanel } from "./inspector-panel";
@@ -10,19 +11,10 @@ export type EditorDialogKind =
 
 const titles: Record<EditorDialogKind, string> = {
   export: "Export Code",
-  project: "Untitled project",
+  project: "Local workspace",
   help: "Editor shortcuts",
   navigation: "Project navigation",
   inspector: "Inspector properties",
-};
-
-const emptyStates = {
-  project: {
-    icon: File,
-    heading: "A new beginning.",
-    description:
-      "This is the ZamnCraft editor with an infinite canvas. UI state lasts for this session only; nothing is stored on a server.",
-  },
 };
 
 export function EditorDialog({
@@ -52,9 +44,6 @@ export function EditorDialog({
     closeRef.current?.focus();
   }, [kind]);
 
-  const empty =
-    kind in emptyStates ? emptyStates[kind as keyof typeof emptyStates] : null;
-
   return (
     <dialog
       ref={ref}
@@ -74,7 +63,9 @@ export function EditorDialog({
           onClick={onDismiss}
         />
       </div>
-      {kind === "export" ? (
+      {kind === "project" ? (
+        <WorkspaceSettings onDismiss={onDismiss} />
+      ) : kind === "export" ? (
         <CodeExport />
       ) : kind === "navigation" ? (
         <NavigationPanel onHelp={onHelp} />
@@ -116,30 +107,15 @@ export function EditorDialog({
             instance to edit it independently. Pages supports adding, renaming,
             deleting, and switching page canvases. Export Code generates React,
             Vue, Svelte, or HTML/CSS for the current page, with copy and
-            download controls. Changes apply immediately.
+            download controls. Add Tablet or Mobile with the canvas breakpoint
+            controls; choose a variant in Preview. Ctrl/Cmd+Z undoes;
+            Ctrl/Cmd+Shift+Z or Ctrl+Y redoes. A history shortcut during a drag
+            cancels it first. Open Local workspace to rename, reset, or load a
+            starter. Changes save automatically in this browser; history lasts
+            until refresh.
           </p>
         </div>
-      ) : (
-        empty && (
-          <div className="dialog-content dialog-empty">
-            <empty.icon
-              size={24}
-              strokeWidth={1.5}
-              className="muted"
-              aria-hidden="true"
-            />
-            <h3>{empty.heading}</h3>
-            <p className="dialog-description">{empty.description}</p>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onDismiss}
-            >
-              Back to editor
-            </button>
-          </div>
-        )
-      )}
+      ) : null}
     </dialog>
   );
 }
