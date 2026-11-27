@@ -20,7 +20,13 @@ test("editor chrome follows the approved importer tokens without changing author
     "font-family",
     "Arial, Helvetica, sans-serif",
   );
-  await page.locator('[data-editor-element="desktop"]').click();
+  await expect(page.locator(".canvas-world")).not.toHaveCSS(
+    "transform",
+    "matrix(1, 0, 0, 1, 0, 0)",
+  );
+  await page
+    .getByRole("button", { name: "Focus Desktop breakpoint", exact: true })
+    .click();
   const inspector = page.getByRole("complementary", {
     name: "Inspector",
     exact: true,

@@ -270,7 +270,7 @@ test("spring stiffness and damping produce a native spring curve with visible ov
   await page.getByRole("button", { name: "Exit preview", exact: true }).click();
 });
 
-test("blur and shadow bind in both modes while invalid shadow drafts revert safely", async ({
+test("blur and independent shadow controls bind in both modes while invalid drafts revert safely", async ({
   page,
 }) => {
   const { node } = await setup(page);
@@ -287,15 +287,24 @@ test("blur and shadow bind in both modes while invalid shadow drafts revert safe
     "box-shadow",
     "rgba(0, 0, 0, 0.25) 0px 8px 24px 0px",
   );
-  const shadow = effects(page).getByRole("textbox", {
-    name: "Shadow",
+  const blur = effects(page).getByRole("spinbutton", {
+    name: "Shadow blur",
     exact: true,
   });
-  await shadow.fill("not a shadow");
-  await shadow.blur();
-  await expect(shadow).toHaveValue("0 8px 24px #00000040");
-  await shadow.fill("0 2px 6px #123456");
-  await shadow.blur();
+  await blur.fill("-1");
+  await blur.blur();
+  await expect(blur).toHaveValue("24");
+  await number(page, "Shadow Y", 2);
+  await number(page, "Shadow blur", 6);
+  const color = effects(page).getByRole("textbox", {
+    name: "Shadow color hex",
+    exact: true,
+  });
+  await color.fill("not a color");
+  await color.blur();
+  await expect(color).toHaveValue("#00000040");
+  await color.fill("#123456");
+  await color.blur();
   await expect(node).toHaveCSS("box-shadow", "rgb(18, 52, 86) 0px 2px 6px 0px");
   await page.getByRole("button", { name: "Preview site", exact: true }).click();
   await expect(node).toHaveCSS("filter", "blur(2px)");

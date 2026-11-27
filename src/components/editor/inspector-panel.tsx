@@ -38,6 +38,8 @@ import {
 } from "@/store/editor-store";
 import { DEFAULT_EFFECTS } from "@/lib/element-effects";
 import { ScrubInput } from "./scrub-input";
+import { ColorField } from "./color-field";
+import { ShadowControls } from "./shadow-controls";
 import {
   PopoverSelect,
   PropertyRow,
@@ -154,91 +156,6 @@ function Choice({
     </PropertyRow>
   );
 }
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState(value),
-    [focused, setFocused] = useState(false);
-  const hex = /^#[\da-f]{6}/i.test(value)
-    ? value.slice(0, 7)
-    : /^#[\da-f]{3}$/i.test(value)
-      ? "#" +
-        value
-          .slice(1)
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : "#000000";
-  return (
-    <PropertyRow label={label}>
-      <div className="color-control">
-        <input
-          type="color"
-          aria-label={`${label} color picker`}
-          value={hex}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <input
-          type="text"
-          aria-label={`${label} hex`}
-          spellCheck={false}
-          value={focused ? draft : value}
-          onFocus={() => {
-            setDraft(value);
-            setFocused(true);
-          }}
-          onBlur={() => setFocused(false)}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            if (
-              /^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(
-                event.target.value,
-              )
-            )
-              onChange(event.target.value);
-          }}
-        />
-      </div>
-    </PropertyRow>
-  );
-}
-function ShadowField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState(value),
-    [focused, setFocused] = useState(false);
-  return (
-    <PropertyRow label="CSS">
-      <input
-        className="text-control"
-        aria-label="Shadow"
-        spellCheck={false}
-        value={focused ? draft : value}
-        onFocus={() => {
-          setDraft(value);
-          setFocused(true);
-        }}
-        onBlur={() => setFocused(false)}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (CSS.supports("box-shadow", event.target.value))
-            onChange(event.target.value);
-        }}
-      />
-    </PropertyRow>
-  );
-}
-
 function EffectsInspector({ element }: { element: EditorElement }) {
   const effects = element.effects ?? DEFAULT_EFFECTS;
   const update = useEditorStore((state) => state.updateEffects),
@@ -504,7 +421,7 @@ function EffectsInspector({ element }: { element: EditorElement }) {
               value: "custom",
               label: "Custom",
               icon: Square,
-              hint: "CSS",
+              hint: "Editable",
               group: "Advanced",
             },
           ]}
@@ -512,7 +429,7 @@ function EffectsInspector({ element }: { element: EditorElement }) {
             if (shadow !== "custom") update(id, { shadow });
           }}
         />
-        <ShadowField
+        <ShadowControls
           value={effects.shadow}
           onChange={(shadow) => update(id, { shadow })}
         />

@@ -144,7 +144,7 @@ test("Fixed, Fill and Fit sizing update real geometry and the inspector reports 
   await expect(root).toHaveCSS("width", "1200px");
 });
 
-test("fill, native color picker, opacity, radius and border are live and invalid drafts do not corrupt styles", async ({
+test("fill, custom color picker, opacity, radius and border are live and invalid drafts do not corrupt styles", async ({
   page,
 }) => {
   const frame = await insert(page, page.locator(rootSelector), "Frame");
@@ -157,16 +157,13 @@ test("fill, native color picker, opacity, radius and border are live and invalid
   await hex.blur();
   await expect(hex).toHaveValue("#336699");
   await panel
-    .getByLabel("Fill color picker", { exact: true })
-    .evaluate((node) => {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!;
-      setter.call(node, "#ff8800");
-      node.dispatchEvent(new Event("input", { bubbles: true }));
-      node.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    .getByRole("button", { name: "Fill color picker", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Fill color", exact: true })
+    .getByRole("button", { name: "Use #ff8800", exact: true })
+    .click();
+  await page.keyboard.press("Escape");
   await expect(hex).toHaveValue("#ff8800");
   await expect(frame).toHaveCSS("background-color", "rgb(255, 136, 0)");
   await setNumber(page, "Opacity", 55.5);
