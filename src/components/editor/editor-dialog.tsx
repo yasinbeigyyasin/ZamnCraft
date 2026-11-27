@@ -113,7 +113,10 @@ export function EditorDialog({
             double-click a name (or press F2) to rename it. Delete or Backspace
             removes the selected layer and its children when you are not typing.
             Use the Inspector to adjust position, size, layout, styles, and
-            typography. Changes apply immediately.
+            typography. In Select mode, drag an element to move it or use its
+            eight handles to resize. Edges and centers snap to the parent and
+            siblings; hold Alt or Option to bypass snapping. Escape cancels an
+            active drag or resize. Changes apply immediately.
           </p>
         </div>
       ) : (

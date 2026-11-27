@@ -16,6 +16,7 @@ import {
 } from "@/store/useEditorStore";
 import { IconButton, tools } from "./editor-controls";
 import { CanvasRenderer } from "./CanvasRenderer";
+import { useCanvasManipulation } from "./use-canvas-manipulation";
 
 function isTextInput(target: EventTarget | null) {
   return (
@@ -37,6 +38,14 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     pan: Point;
   } | null>(null);
   const suppressClickRef = useRef(false);
+  const suppressClick = useCallback(() => {
+    suppressClickRef.current = true;
+  }, []);
+  const manipulation = useCanvasManipulation(
+    viewportRef,
+    suspended,
+    suppressClick,
+  );
   const [spacePressed, setSpacePressed] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const activeToolLabel = tools.find((item) => item.id === activeTool)?.label;
@@ -45,8 +54,9 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       !suspended &&
       !suppressClickRef.current &&
       !dragRef.current &&
+      !manipulation.gesture.current &&
       !spaceRef.current,
-    [suspended],
+    [suspended, manipulation.gesture],
   );
 
   const finishPan = useCallback(() => {
@@ -107,6 +117,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       )
         return;
       event.preventDefault();
+      manipulation.finish(true);
       spaceRef.current = true;
       setSpacePressed(true);
     }
@@ -129,7 +140,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       window.removeEventListener("blur", clearGesture);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [suspended, finishPan]);
+  }, [suspended, finishPan, manipulation.finish]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -137,7 +148,7 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     function handleWheel(event: WheelEvent) {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
-      if (suspended || dragRef.current) return;
+      if (suspended || dragRef.current || manipulation.gesture.current) return;
       const rect = viewport!.getBoundingClientRect();
       const unit =
         event.deltaMode === WheelEvent.DOM_DELTA_LINE
@@ -155,11 +166,12 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     // A passive wheel listener cannot prevent the browser's own Ctrl/Cmd zoom.
     viewport.addEventListener("wheel", handleWheel, { passive: false });
     return () => viewport.removeEventListener("wheel", handleWheel);
-  }, [suspended, setZoom]);
+  }, [suspended, setZoom, manipulation.gesture]);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
     if (
       suspended ||
+      manipulation.gesture.current ||
       (event.target instanceof Element &&
         event.target.closest("[data-canvas-ui]"))
     )
@@ -168,7 +180,10 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
     if (event.button === 0 && isTextInput(event.target)) return;
     suppressClickRef.current = false;
     event.currentTarget.focus({ preventScroll: true });
-    if (event.button !== 1 && !spaceRef.current) return;
+    if (event.button !== 1 && !spaceRef.current) {
+      manipulation.start(event);
+      return;
+    }
     event.preventDefault();
     dragRef.current = {
       pointerId: event.pointerId,
@@ -196,13 +211,19 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
       aria-label="Design canvas"
       aria-describedby="canvas-navigation-help"
       tabIndex={0}
-      className={`canvas canvas-tool-${activeTool} ${spacePressed ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""}`}
+      className={`canvas canvas-tool-${activeTool} ${spacePressed ? "canvas-pan-ready" : ""} ${isPanning ? "canvas-panning" : ""} ${manipulation.active ? "canvas-manipulating" : ""}`}
       style={{
         backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
         backgroundPosition: `${pan.x}px ${pan.y}px`,
+        cursor: manipulation.active
+          ? manipulation.gesture.current?.handle
+            ? `${manipulation.gesture.current.handle}-resize`
+            : "move"
+          : undefined,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={(event) => {
+        manipulation.move(event);
         const drag = dragRef.current;
         if (drag && drag.pointerId === event.pointerId)
           setPan({
@@ -211,10 +232,20 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
           });
       }}
       onPointerUp={(event) => {
+        if (event.pointerId === manipulation.gesture.current?.pointerId)
+          manipulation.finish();
         if (event.pointerId === dragRef.current?.pointerId) finishPan();
       }}
-      onPointerCancel={finishPan}
-      onLostPointerCapture={finishPan}
+      onPointerCancel={(event) => {
+        if (event.pointerId === manipulation.gesture.current?.pointerId)
+          manipulation.finish(true);
+        finishPan();
+      }}
+      onLostPointerCapture={(event) => {
+        if (event.pointerId === manipulation.gesture.current?.pointerId)
+          manipulation.finish(true);
+        finishPan();
+      }}
       onClick={(event) => {
         if (!canInteract()) return;
         const target = event.target instanceof Element ? event.target : null;
@@ -242,6 +273,29 @@ export function Canvas({ suspended = false }: { suspended?: boolean }) {
         }}
       >
         <CanvasRenderer canInteract={canInteract} />
+        {manipulation.guides.map((guide, index) => (
+          <span
+            key={index}
+            className="canvas-alignment-guide"
+            data-guide-axis={guide.axis}
+            aria-hidden="true"
+            style={
+              guide.axis === "x"
+                ? {
+                    left: guide.value,
+                    top: guide.start - 8 / zoom,
+                    width: 1 / zoom,
+                    height: guide.end - guide.start + 16 / zoom,
+                  }
+                : {
+                    top: guide.value,
+                    left: guide.start - 8 / zoom,
+                    height: 1 / zoom,
+                    width: guide.end - guide.start + 16 / zoom,
+                  }
+            }
+          />
+        ))}
       </div>
       <div className="canvas-breadcrumb" data-canvas-ui>
         <Home size={12} strokeWidth={1.5} aria-hidden="true" />

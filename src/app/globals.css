@@ -1155,3 +1155,32 @@ kbd {
   margin-right: 8px;
   white-space: nowrap;
 }
+
+.canvas-resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #0099ff;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 2;
+}
+.canvas-alignment-guide {
+  position: absolute;
+  background: #0099ff;
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 5;
+}
+.canvas-tool-select .canvas-element[data-selected="true"] {
+  cursor: move;
+}
+.canvas-tool-select .canvas-text-content[contenteditable="plaintext-only"] {
+  cursor: text;
+}
+.canvas.canvas-manipulating *,
+.canvas.canvas-pan-ready * {
+  cursor: inherit !important;
+}

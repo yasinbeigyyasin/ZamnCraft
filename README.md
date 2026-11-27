@@ -48,7 +48,7 @@ npm run test:e2e
 
 Playwright starts the development server automatically, or reuses an existing server outside CI. It checks panel dimensions and colors, shortcuts, keyboard tabs, modal focus and dismissal, zoom boundaries, mobile panel access, duplicate IDs, and browser errors. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an existing compatible Chromium binary instead of a Playwright-managed browser.
 
-## Steps 3–5: canvas, interactive layers, and live Inspector
+## Steps 3–6: canvas, layers, Inspector, and direct manipulation
 
 The original dark editor chrome is preserved: a 48px toolbar, 256px navigation panel, and 288px inspector on desktop. The former empty canvas now contains a white **1200 × 800 Desktop frame**, with the Step 2 pan/zoom controls preserved.
 
@@ -74,7 +74,7 @@ The original dark editor chrome is preserved: a 48px toolbar, 256px navigation p
 
 Keyboard shortcuts ignore text fields, composition, modifiers, already-handled events, and open dialogs. Tabs retain arrow-key, Home, and End navigation. Narrow viewports retain toolbar access to navigation and inspector dialogs.
 
-Preview and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Canvas drag-to-move and resize handles are not implemented yet; position and size can be changed through the Inspector.
+Preview and code generation are still unavailable. State is session-only, with no backend, undo history, animation editing, or persistence. Position and size can be changed through the Inspector or directly on the canvas.
 
 ## Interactive Layers panel
 
@@ -101,15 +101,27 @@ Select an element on the canvas or in Layers. The existing Inspector updates imm
 
 Effects editing, persistence, and undo remain out of scope. Refresh still resets the session.
 
+## Direct canvas manipulation
+
+- **Move:** choose Select (V), then drag a frame, text, or button. Clicking an unselected element selects it first. Pointer movement is divided by the current zoom and updates parent-local X/Y live; root elements use world offsets. The parent and unrelated siblings are not moved. Negative/off-frame positions are allowed.
+- **Resize:** the selected element shows eight screen-sized 8px square handles on its 2px blue border, including on bordered elements and at different zoom levels. Side handles change one axis; corners change both. North/west handles also update position to hold the opposite edge still in Free layout. Width/height cannot flip; the minimum is 8 world pixels or the element's combined border thickness, whichever is larger. Resized axes become Fixed; untouched sizing modes remain unchanged. Stack/Grid elements retain CSS flow positioning and can reflow their siblings normally.
+- **Snap:** edges and centers snap to the parent frame and immediate siblings within **6 screen pixels**, independent of zoom. Resizing snaps only active edges. Subtle 1px blue guides appear during the gesture and clear on completion. Hold **Alt/Option** to bypass snapping. Snap references are measured at gesture start; there is no grid snapping or reparenting.
+- **Commit/cancel:** release to commit, including outside the canvas through pointer capture. Escape, pointer cancellation, capture loss, window blur, hidden tabs, selection/tool changes, or opening a modal cancel and restore the starting geometry/sizing modes. A 3px movement threshold keeps clicks and double-click text editing intact.
+- **Pan and text:** Space + drag and middle-button pan remain separate from manipulation. Ctrl/Cmd-wheel zoom is suspended during an element gesture. Text editing and Inspector inputs cannot initiate a drag. Primary touch/pen use the same pointer path; the Inspector remains the keyboard-accessible alternative to mouse/touch handles.
+
+Direct manipulation uses the existing atomic `updateStyles` action; guides and gesture snapshots stay transient rather than becoming document state. No new dependency is required. Gesture cancellation is not an undo history: after release, edits remain session-only with no general undo or persistence.
+
 ## Code and design
 
-Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–5 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
+Ponytail guides coding; Unslop guides design. See `AGENTS.md` for the pinned skills and attribution. The original Step 1 visual design is restored: compact controls, ZamnCraft branding, and blue page and tool selections. Steps 2–6 replace the canvas empty state with the Desktop frame, navigation controls, and the requested selection labels. Preserve this design unless the user explicitly approves visual changes. Keyboard, dialog, and state-management fixes are retained.
 
 ### Main files
 
 - `src/components/editor/editor-shell.tsx`: layout, toolbar, tool shortcuts, and guarded deletion shortcuts.
 - `src/components/editor/canvas.tsx`: world transform, gesture guards, pan, zoom, and fit view.
-- `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, and inline text editing.
+- `src/components/editor/CanvasRenderer.tsx`: recursive nodes, insertion, selection labels, eight resize handles, and inline text editing.
+- `src/components/editor/use-canvas-manipulation.ts`: pointer capture, movement, resizing, snap targets, and cancellation.
+- `src/lib/canvas-geometry.ts`: pure resize geometry and alignment snapping.
 - `src/types/editor.ts`: element, tool, and canvas data types.
 - `src/components/editor/navigation-panel.tsx`: tabs, recursive disclosures, selection, inline renaming, and trash controls.
 - `src/components/editor/inspector-panel.tsx`: live position, size, layout, style, and typography controls.

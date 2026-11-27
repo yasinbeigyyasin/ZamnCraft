@@ -11,6 +11,7 @@ import {
   type MouseEvent,
 } from "react";
 import { Monitor } from "lucide-react";
+import { RESIZE_HANDLES } from "@/lib/canvas-geometry";
 import { useEditorStore, type EditorElement } from "@/store/useEditorStore";
 
 function pastePlainText(event: ClipboardEvent<HTMLSpanElement>) {
@@ -47,11 +48,19 @@ const ElementNode = memo(function ElementNodeView({
   const zoom = useEditorStore((state) =>
     selected ? state.canvasConfig.zoom : 1,
   );
+  const showHandles = useEditorStore(
+    (state) => selected && state.activeTool === "select",
+  );
   const nodeRef = useRef<HTMLElement | null>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const cancelEditRef = useRef(false);
   const [editing, setEditing] = useState(false);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [dimensions, setDimensions] = useState({
+    width: 0,
+    height: 0,
+    borderLeft: 0,
+    borderTop: 0,
+  });
   const content = element.content ?? element.name;
   const Tag = element.type === "button" ? "button" : "div";
   const fillsStack =
@@ -66,10 +75,15 @@ const ElementNode = memo(function ElementNodeView({
     const measure = () => {
       const width = node.offsetWidth;
       const height = node.offsetHeight;
+      const borderLeft = node.clientLeft;
+      const borderTop = node.clientTop;
       setDimensions((previous) =>
-        previous.width === width && previous.height === height
+        previous.width === width &&
+        previous.height === height &&
+        previous.borderLeft === borderLeft &&
+        previous.borderTop === borderTop
           ? previous
-          : { width, height },
+          : { width, height, borderLeft, borderTop },
       );
     };
     measure();
@@ -223,6 +237,8 @@ const ElementNode = memo(function ElementNodeView({
         <span
           className="canvas-selection-box"
           style={{
+            left: -dimensions.borderLeft,
+            top: -dimensions.borderTop,
             width: dimensions.width * zoom,
             height: dimensions.height * zoom,
             transform: `scale(${1 / zoom})`,
@@ -235,6 +251,36 @@ const ElementNode = memo(function ElementNodeView({
               {dimensions.width} × {dimensions.height}
             </span>
           </span>
+          {showHandles &&
+            !editing &&
+            RESIZE_HANDLES.map((handle) => (
+              <span
+                key={handle}
+                className="canvas-resize-handle"
+                data-resize-handle={handle}
+                style={{
+                  left:
+                    (handle.includes("w")
+                      ? 0
+                      : handle.includes("e")
+                        ? 1
+                        : 0.5) *
+                      dimensions.width *
+                      zoom -
+                    2,
+                  top:
+                    (handle.includes("n")
+                      ? 0
+                      : handle.includes("s")
+                        ? 1
+                        : 0.5) *
+                      dimensions.height *
+                      zoom -
+                    2,
+                  cursor: `${handle}-resize`,
+                }}
+              />
+            ))}
         </span>
       )}
     </Tag>
